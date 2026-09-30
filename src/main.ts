@@ -506,7 +506,7 @@ root.innerHTML = `
     <div class="power-track" aria-hidden="true"><span class="meter-center"></span><div id="power-fill"></div></div>
     <p id="message" role="status">物理エンジンを読み込んでいます…</p>
     <button id="retry-button" type="button" aria-label="最初に戻す" title="最初に戻す" disabled>↺</button>
-    <p class="footnote">PC: 発射前/メーター中はA/D・←/→を押し続けて角度調整、SPACE押下で開始・離して発射。飛行中はA/D・←/→、SPACEでJET。</p>
+    <p class="footnote">左右ドラッグ：移動　JET：加速</p>
   </section>
   <button id="jet-button" class="jet-button game-ui" type="button" disabled>JET <span>×1</span></button>
   <div id="player-hud" class="player-hud game-ui" aria-hidden="true">
@@ -1445,7 +1445,7 @@ async function start(): Promise<void> {
       const x = layout.x + Math.cos(a) * CONFIG.ringRadius;
       const py = y + Math.sin(a) * CONFIG.ringRadius;
       const part = box(`Ring-${i + 1}-${s}`,
-        new pc.Vec3(CONFIG.ringThickness, CONFIG.ringThickness, 2.0),
+        new pc.Vec3(CONFIG.ringThickness * 2, CONFIG.ringThickness * 2, 4.0),
         new pc.Vec3(x, py, layout.z), ringAvailableMaterial);
       parts.push(part);
     }
@@ -2074,7 +2074,7 @@ async function start(): Promise<void> {
           ring.y + Math.sin(a) * ring.radius,
           ring.z,
         );
-        part.setLocalScale(CONFIG.ringThickness, CONFIG.ringThickness, 2.0);
+        part.setLocalScale(CONFIG.ringThickness * 2, CONFIG.ringThickness * 2, 4.0);
         if (part.render) part.render.material = ringAvailableMaterial;
       }
     }
@@ -2651,7 +2651,7 @@ async function start(): Promise<void> {
           ring.z,
         );
         const s = Math.max(0.02, pieceScale);
-        part.setLocalScale(CONFIG.ringThickness * s, CONFIG.ringThickness * s, 2.0 * s);
+        part.setLocalScale(CONFIG.ringThickness * 2 * s, CONFIG.ringThickness * 2 * s, 4.0 * s);
         if (part.render) part.render.material = ringUsedMaterial;
       }
       if (ring.effectTime >= burstEnd) {
