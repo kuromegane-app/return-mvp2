@@ -303,6 +303,10 @@ const NEXT_RARITY: Partial<Record<Rarity, Rarity>> = {
 };
 
 type GachaKind = 'standard' | 'premium' | 'ad';
+const CURRENT_STAGE_ID = 1 as const;
+const STAGE_MAX_RARITY: Record<1 | 2 | 3, Rarity> = {
+  1: 'epic', 2: 'legendary', 3: 'mythic',
+};
 const STAGE_DROP_RATES: Record<Rarity, number> = {
   common: 68, rare: 24, epic: 6.5, legendary: 1.4, mythic: 0.1,
 };
@@ -505,7 +509,7 @@ root.innerHTML = `
     </div>
     <div class="power-track" aria-hidden="true"><span class="meter-center"></span><div id="power-fill"></div></div>
     <p id="message" role="status">物理エンジンを読み込んでいます…</p>
-    <button id="retry-button" type="button" disabled>最初に戻す</button>
+    <button id="retry-button" type="button" aria-label="最初に戻す" title="最初に戻す" disabled>↺</button>
     <p class="footnote">PC: 発射前/メーター中はA/D・←/→を押し続けて角度調整、SPACE押下で開始・離して発射。飛行中はA/D・←/→、SPACEでJET。</p>
   </section>
   <button id="jet-button" class="jet-button game-ui" type="button" disabled>JET <span>×1</span></button>
@@ -1245,6 +1249,7 @@ async function start(): Promise<void> {
   }
 
   // Flat test course. This makes vertical motion easy to judge before terrain returns.
+  const flatY = 0;
   const ground = new pc.Entity('Ground');
   ground.setPosition(0, -0.5, CONFIG.courseLength * 0.5);
   ground.addComponent('collision', {
@@ -1877,6 +1882,7 @@ async function start(): Promise<void> {
   let resultShown = false;
   let resultDropRolled = false;
   let pendingStageUnlockFinish: (() => void) | null = null;
+  let stageUnlockVisible = false;
   let techniqueSigns = 0;
   let techniqueWindows = 0;
   let techniqueFountains = 0;
@@ -1892,6 +1898,7 @@ async function start(): Promise<void> {
   let perfectDashDecayPerSecond = 0;
   const pressedKeys = new Set<string>();
   const velocityBuffer = new pc.Vec3();
+  let power = 0.5;
   let swingMeter = 0.5;
   let swingStartedAt = 0;
   let yaw = 0;
@@ -1943,6 +1950,7 @@ async function start(): Promise<void> {
     const elapsedSeconds = Math.max(0, performance.now() - swingStartedAt) / 1000;
     const cycle = (elapsedSeconds % CONFIG.swingPeriodSeconds) / CONFIG.swingPeriodSeconds;
     swingMeter = cycle < 0.5 ? cycle * 2 : (1 - cycle) * 2;
+    power = launchCenterScore(swingMeter);
     updateAimReadouts();
   }
 
@@ -1961,6 +1969,7 @@ async function start(): Promise<void> {
     pressedKeys.clear();
     if (phase !== 'aiming') return;
     setPhase('ready');
+    power = 1;
     swingMeter = 0.5;
     yaw = 0;
     updateAimReadouts();
@@ -2148,6 +2157,7 @@ async function start(): Promise<void> {
     body!.linearVelocity = new pc.Vec3();
     body!.angularVelocity = new pc.Vec3();
     body!.activate();
+    power = 0.5;
     swingMeter = 0.5;
     yaw = distance = stillTime = elapsed = uiElapsed = 0;
     fountainFeedbackCooldown = 0;
@@ -2985,6 +2995,7 @@ async function start(): Promise<void> {
   stageUnlockClose.addEventListener('click', () => {
     stageUnlockOverlay.classList.remove('show');
     stageUnlockOverlay.setAttribute('aria-hidden', 'true');
+    stageUnlockVisible = false;
     const next = pendingStageUnlockFinish;
     pendingStageUnlockFinish = null;
     if (next) next();
@@ -3204,6 +3215,7 @@ async function start(): Promise<void> {
         stageUnlockReward.textContent = milestoneReward ? `初回報酬：${itemDisplayName(milestoneReward)}` : '';
         stageUnlockOverlay.classList.add('show');
         stageUnlockOverlay.setAttribute('aria-hidden', 'false');
+        stageUnlockVisible = true;
         pendingStageUnlockFinish = completeResult;
       } else {
         showMilestoneBanner('complete', hitGoal, wasCurrentLockedGoal);
