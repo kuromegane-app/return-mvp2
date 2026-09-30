@@ -2985,7 +2985,6 @@ async function start(): Promise<void> {
   stageUnlockClose.addEventListener('click', () => {
     stageUnlockOverlay.classList.remove('show');
     stageUnlockOverlay.setAttribute('aria-hidden', 'true');
-    stageUnlockVisible = false;
     const next = pendingStageUnlockFinish;
     pendingStageUnlockFinish = null;
     if (next) next();
@@ -3205,7 +3204,6 @@ async function start(): Promise<void> {
         stageUnlockReward.textContent = milestoneReward ? `初回報酬：${itemDisplayName(milestoneReward)}` : '';
         stageUnlockOverlay.classList.add('show');
         stageUnlockOverlay.setAttribute('aria-hidden', 'false');
-        stageUnlockVisible = true;
         pendingStageUnlockFinish = completeResult;
       } else {
         showMilestoneBanner('complete', hitGoal, wasCurrentLockedGoal);
