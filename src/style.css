@@ -644,3 +644,90 @@ h1 { margin: 0; font-size: clamp(16px, 4.4vw, 21px); line-height: 1.45; }
     font-size: 22px;
   }
 }
+
+/* STEP 35: mobile launch-meter placement + lightweight flight instructions. */
+/* Before launch, float the timing UI above the 3D launch arrow instead of under the thumb. */
+#app[data-phase="ready"] .bottom-panel,
+#app[data-phase="aiming"] .bottom-panel {
+  position: fixed;
+  left: 50%;
+  right: auto;
+  top: 25%;
+  bottom: auto;
+  width: min(360px, calc(100vw - 48px));
+  max-width: none;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+#app[data-phase="ready"] .bottom-panel .aim-readouts,
+#app[data-phase="aiming"] .bottom-panel .aim-readouts {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  color: rgba(255,255,255,.9);
+  font-size: 11px;
+  font-weight: 800;
+  text-shadow: 0 2px 7px rgba(0,0,0,.75);
+}
+#app[data-phase="ready"] .bottom-panel .aim-readouts b,
+#app[data-phase="aiming"] .bottom-panel .aim-readouts b {
+  color: #fff;
+  font-size: 16px;
+}
+#app[data-phase="ready"] .bottom-panel .power-track,
+#app[data-phase="aiming"] .bottom-panel .power-track {
+  display: block;
+  width: min(320px, 82vw);
+  height: 10px;
+  margin: 10px auto 0;
+  border: 1px solid rgba(255,255,255,.72);
+  background: rgba(10,22,30,.38);
+  box-shadow: 0 3px 12px rgba(0,0,0,.25);
+}
+#app[data-phase="ready"] .bottom-panel #message,
+#app[data-phase="aiming"] .bottom-panel #message,
+#app[data-phase="ready"] .bottom-panel .flight-readouts,
+#app[data-phase="aiming"] .bottom-panel .flight-readouts,
+#app[data-phase="ready"] .bottom-panel .footnote,
+#app[data-phase="aiming"] .bottom-panel .footnote {
+  display: none !important;
+}
+
+/* During flight, only a tiny direct-on-screen control hint remains. */
+#app[data-phase="flying"] .bottom-panel {
+  display: block;
+  position: fixed;
+  left: 50%;
+  right: auto;
+  bottom: max(10px, calc(env(safe-area-inset-bottom) + 10px));
+  top: auto;
+  width: auto;
+  max-width: calc(100vw - 150px);
+  transform: translateX(-50%);
+}
+#app[data-phase="flying"] .bottom-panel .footnote {
+  display: block !important;
+  margin: 0;
+  color: rgba(255,255,255,.82);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: nowrap;
+  text-align: center;
+  text-shadow: 0 2px 6px rgba(0,0,0,.72);
+}
+
+@media (max-width: 720px) {
+  #app[data-phase="ready"] .bottom-panel,
+  #app[data-phase="aiming"] .bottom-panel { top: 22%; width: calc(100vw - 34px); }
+  #app[data-phase="ready"] .bottom-panel .power-track,
+  #app[data-phase="aiming"] .bottom-panel .power-track { width: min(330px, 86vw); height: 11px; }
+  #app[data-phase="flying"] .bottom-panel { bottom: max(8px, calc(env(safe-area-inset-bottom) + 8px)); }
+  #app[data-phase="flying"] .bottom-panel .footnote { font-size: 8px; }
+}
