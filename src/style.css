@@ -505,3 +505,142 @@ h1 { margin: 0; font-size: clamp(16px, 4.4vw, 21px); line-height: 1.45; }
   58% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -58%) scale(1.04); }
 }
+
+
+/* STEP 34: mobile-first in-play HUD cleanup. */
+/* Keep only distance and coin count as lightweight text over the game view. */
+.top-panel {
+  top: max(10px, env(safe-area-inset-top));
+  left: 12px;
+  right: auto;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  pointer-events: none;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,.72);
+}
+.top-panel .eyebrow,
+.top-panel h1,
+.top-panel .readouts > div:nth-child(2),
+.top-panel .readouts > div:nth-child(3),
+.top-panel .target-progress > span:first-child,
+.top-panel .target-progress > span:last-child {
+  display: none !important;
+}
+.top-panel .readouts {
+  display: block;
+  margin: 0;
+}
+.top-panel .readouts > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.top-panel .readouts > div:first-child > span {
+  margin: 0;
+  color: rgba(255,255,255,.78);
+  font-size: 9px;
+  font-weight: 800;
+}
+.top-panel .readouts > div:first-child strong {
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 950;
+}
+.top-panel .target-progress {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+.top-panel .target-progress > span:nth-child(2) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+#coin-count { color: #ffd55a; font-size: 16px; }
+
+/* Launch controls stay visible before launch, then disappear completely during flight. */
+#app[data-phase="flying"] .bottom-panel {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  pointer-events: none;
+}
+#app[data-phase="flying"] .bottom-panel .aim-readouts,
+#app[data-phase="flying"] .bottom-panel .flight-readouts,
+#app[data-phase="flying"] .bottom-panel .power-track,
+#app[data-phase="flying"] .bottom-panel #message,
+#app[data-phase="flying"] .bottom-panel .footnote {
+  display: none !important;
+}
+
+/* Small reset control in the upper-right to avoid accidental touches. */
+#retry-button {
+  position: fixed;
+  z-index: 18;
+  top: max(10px, env(safe-area-inset-top));
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(16,31,42,.48);
+  border: 1px solid rgba(255,255,255,.48);
+  color: #fff;
+  font-size: 19px;
+  line-height: 34px;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(0,0,0,.20);
+  pointer-events: auto;
+  opacity: .82;
+}
+#retry-button:hover { background: rgba(16,31,42,.62); }
+#retry-button:disabled { opacity: 0; pointer-events: none; }
+
+/* JET is the main thumb action during flight, so make it deliberately large. */
+.jet-button {
+  bottom: max(28px, calc(env(safe-area-inset-bottom) + 28px));
+  width: 104px;
+  height: 104px;
+  border-width: 4px;
+  font-size: 24px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.30);
+}
+.jet-button span { font-size: 13px; }
+
+@media (max-width: 720px) {
+  .top-panel { left: 10px; gap: 13px; }
+  .top-panel .readouts > div:first-child strong { font-size: 20px; }
+  .top-panel .target-progress { font-size: 10px; }
+  #coin-count { font-size: 15px; }
+  .jet-button {
+    bottom: max(24px, calc(env(safe-area-inset-bottom) + 24px));
+    width: 112px;
+    height: 112px;
+    font-size: 25px;
+  }
+}
+
+@media (max-height: 640px) {
+  .jet-button {
+    bottom: max(18px, calc(env(safe-area-inset-bottom) + 18px));
+    width: 94px;
+    height: 94px;
+    font-size: 22px;
+  }
+}
