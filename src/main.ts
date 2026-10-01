@@ -635,9 +635,9 @@ root.innerHTML = `
             <div id="merge-area" class="merge-area" aria-label="マージエリア">
               <button class="merge-slot" data-merge-index="0" type="button">1</button><button class="merge-slot" data-merge-index="1" type="button">2</button><button class="merge-slot" data-merge-index="2" type="button">3</button><button class="merge-slot" data-merge-index="3" type="button">4</button><button class="merge-slot" data-merge-index="4" type="button">5</button>
             </div>
-            <div id="merge-candidates" class="merge-candidates">装備をドラッグ＆ドロップすると継承候補を表示します。</div>
+            <div id="merge-candidates" class="merge-candidates">装備をタップして選択すると継承候補を表示します。</div>
             <button id="merge-button" class="merge-button" type="button" disabled>5個セットしてください</button>
-            <small id="merge-message" class="merge-message">ロック中・装備中・MYTHICは素材にできません。</small>
+            <small id="merge-message" class="merge-message">ロック中・装備中・MYTHICは素材にできません。アイコン右上のⓘで詳細を開けます。</small>
           </section>
           <div id="inventory-grid" class="inventory-grid"></div>
         </div>
@@ -783,7 +783,6 @@ const itemDetailAbilities = element<HTMLElement>('#item-detail-abilities');
 const itemEquip = element<HTMLButtonElement>('#item-equip');
 const itemLock = element<HTMLButtonElement>('#item-lock');
 const itemSell = element<HTMLButtonElement>('#item-sell');
-const mergeArea = element<HTMLElement>('#merge-area');
 const mergeSlots = Array.from(root!.querySelectorAll<HTMLButtonElement>('.merge-slot'));
 const mergeCandidates = element<HTMLElement>('#merge-candidates');
 const mergeButton = element<HTMLButtonElement>('#merge-button');
@@ -945,13 +944,20 @@ function renderInventory(): void {
   inventoryGrid.replaceChildren();
   const equippedIds = new Set(Object.values(gameSave.equipped).filter(Boolean));
   for (const item of sorted) {
-    const card = document.createElement('button');
-    card.type = 'button';
+    const card = document.createElement('div');
     card.className = `inventory-item ${rarityClass(item.rarity)}${equippedIds.has(item.id) ? ' equipped' : ''}`;
     card.dataset.itemId = item.id;
-    card.draggable = !item.locked && !equippedIds.has(item.id) && item.rarity !== 'mythic';
-    if (mergeItemIds.includes(item.id)) card.classList.add('merge-selected');
-    card.innerHTML = `<span class="item-icon">${SLOT_META[item.slot].icon}</span><b>${RARITY_META[item.rarity].label}</b><small>${item.locked ? '🔒' : equippedIds.has(item.id) ? '装備中' : ''}</small>`;
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', `${itemDisplayName(item)}をマージ素材として選択`);
+    const selectedForMerge = mergeItemIds.includes(item.id);
+    if (selectedForMerge) card.classList.add('merge-selected');
+    const firstMergeItem = mergeItems()[0];
+    const mergeBlocked = item.locked || equippedIds.has(item.id) || item.rarity === 'mythic';
+    const mergeIncompatible = Boolean(firstMergeItem && !selectedForMerge && (item.slot !== firstMergeItem.slot || item.rarity !== firstMergeItem.rarity));
+    if (mergeBlocked) card.classList.add('merge-blocked');
+    if (mergeIncompatible) card.classList.add('merge-incompatible');
+    card.innerHTML = `<span class="item-icon">${SLOT_META[item.slot].icon}</span><b>${RARITY_META[item.rarity].label}</b><small>${item.locked ? '🔒' : equippedIds.has(item.id) ? '装備中' : ''}</small>${selectedForMerge ? '<span class="merge-check">✓</span>' : ''}<button class="item-info-button" type="button" data-detail-id="${item.id}" aria-label="装備詳細">ⓘ</button>`;
     inventoryGrid.appendChild(card);
   }
   const empties = Math.min(12, Math.max(0, CONFIG.inventoryCapacity - gameSave.inventory.length));
@@ -1009,10 +1015,10 @@ function renderMergeArea(): void {
     slot.dataset.itemId = item?.id ?? '';
   }
   if (!items.length) {
-    mergeCandidates.textContent = '装備をドラッグ＆ドロップすると継承候補を表示します。';
+    mergeCandidates.textContent = '装備をタップして選択すると継承候補を表示します。';
     mergeButton.disabled = true;
     mergeButton.textContent = '5個セットしてください';
-    mergeMessage.textContent = 'ロック中・装備中・MYTHICは素材にできません。';
+    mergeMessage.textContent = 'ロック中・装備中・MYTHICは素材にできません。アイコン右上のⓘで詳細を開けます。';
     return;
   }
   const counts = mergeCandidateCounts(items);
@@ -1038,6 +1044,14 @@ function addMergeItem(id: string): void {
   }
   mergeItemIds.push(id);
   renderInventory();
+}
+function toggleMergeItem(id: string): void {
+  if (mergeItemIds.includes(id)) {
+    mergeItemIds = mergeItemIds.filter((candidate) => candidate !== id);
+    renderInventory();
+    return;
+  }
+  addMergeItem(id);
 }
 function performMerge(): void {
   const items = mergeItems();
@@ -2926,24 +2940,26 @@ async function start(): Promise<void> {
     activeInventorySlot = tab.dataset.slot as EquipmentSlot; mergeItemIds = []; renderInventory();
   }, eventOptions);
   inventoryGrid.addEventListener('click', (event) => {
-    const buttonNode = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-item-id]');
-    if (!buttonNode?.dataset.itemId) return;
-    const item = itemById(buttonNode.dataset.itemId); if (item) showItemDetail(item);
+    const target = event.target as HTMLElement;
+    const detailButton = target.closest<HTMLButtonElement>('[data-detail-id]');
+    if (detailButton?.dataset.detailId) {
+      event.stopPropagation();
+      const item = itemById(detailButton.dataset.detailId);
+      if (item) showItemDetail(item);
+      return;
+    }
+    const card = target.closest<HTMLElement>('[data-item-id]');
+    const id = card?.dataset.itemId;
+    if (!id) return;
+    toggleMergeItem(id);
   }, eventOptions);
-  inventoryGrid.addEventListener('dragstart', (event: DragEvent) => {
+  inventoryGrid.addEventListener('keydown', (event: KeyboardEvent) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
     const card = (event.target as HTMLElement).closest<HTMLElement>('[data-item-id]');
     const id = card?.dataset.itemId;
-    if (!id || !event.dataTransfer) return;
-    const item = itemById(id);
-    if (!item || item.locked || gameSave.equipped[item.slot] === item.id || item.rarity === 'mythic') { event.preventDefault(); return; }
-    event.dataTransfer.setData('text/plain', id);
-    event.dataTransfer.effectAllowed = 'move';
-  }, eventOptions);
-  mergeArea.addEventListener('dragover', (event: DragEvent) => { event.preventDefault(); if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'; }, eventOptions);
-  mergeArea.addEventListener('drop', (event: DragEvent) => {
+    if (!id || (event.target as HTMLElement).closest('[data-detail-id]')) return;
     event.preventDefault();
-    const id = event.dataTransfer?.getData('text/plain');
-    if (id) addMergeItem(id);
+    toggleMergeItem(id);
   }, eventOptions);
   for (const slot of mergeSlots) slot.addEventListener('click', () => {
     const id = slot.dataset.itemId;
@@ -2955,6 +2971,9 @@ async function start(): Promise<void> {
   mergeButton.addEventListener('click', performMerge, eventOptions);
   mergeResultClose.addEventListener('click', () => mergeResultOverlay.classList.remove('show'), eventOptions);
   itemDetailClose.addEventListener('click', () => itemDetail.classList.remove('show'), eventOptions);
+  itemDetail.addEventListener('click', (event: MouseEvent) => {
+    if (event.target === itemDetail) itemDetail.classList.remove('show');
+  }, eventOptions);
   itemEquip.addEventListener('click', () => {
     const item = itemById(selectedItemId ?? undefined); if (!item) return;
     gameSave.equipped[item.slot] = item.id;
