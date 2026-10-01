@@ -731,3 +731,33 @@ h1 { margin: 0; font-size: clamp(16px, 4.4vw, 21px); line-height: 1.45; }
   #app[data-phase="flying"] .bottom-panel { bottom: max(8px, calc(env(safe-area-inset-bottom) + 8px)); }
   #app[data-phase="flying"] .bottom-panel .footnote { font-size: 8px; }
 }
+
+/* STEP 36: tap-to-select merge UX for mobile/desktop. */
+.inventory-item { touch-action: pan-y; }
+.inventory-item.merge-selected { position: relative; outline: 4px solid #ffef9a; outline-offset: -5px; }
+.merge-check {
+  position: absolute; left: 5px; top: 5px; width: 22px; height: 22px;
+  display: grid; place-items: center; border-radius: 50%;
+  background: #fff3a8; color: #162936; font-size: 15px; font-weight: 1000;
+  box-shadow: 0 2px 7px rgba(0,0,0,.28); pointer-events: none;
+}
+.item-info-button {
+  position: absolute; right: 4px; top: 4px; z-index: 2;
+  width: 25px; height: 25px; padding: 0; border: 0; border-radius: 50%;
+  display: grid; place-items: center; background: rgba(255,255,255,.9);
+  color: #162936; font: inherit; font-size: 14px; font-weight: 900;
+  box-shadow: 0 1px 5px rgba(0,0,0,.22); touch-action: manipulation;
+}
+.inventory-item.merge-blocked { opacity: .62; }
+.inventory-item.merge-incompatible { opacity: .32; filter: saturate(.55); }
+.inventory-item.merge-selected.merge-incompatible { opacity: 1; filter: none; }
+@media (max-width: 720px) {
+  .merge-panel {
+    position: sticky; bottom: 0; z-index: 5;
+    box-shadow: 0 -7px 18px rgba(22,41,54,.14);
+    backdrop-filter: blur(8px);
+    background: rgba(238,244,247,.96);
+  }
+  .inventory-grid { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .item-info-button { width: 28px; height: 28px; font-size: 15px; }
+}
