@@ -7,18 +7,43 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies / build
 node_modules
 dist
 dist-ssr
 *.local
+
+# Environment / local config
+.env
+.env.*
+!.env.example
+
+# Local/source production files kept in Google Drive
+*.blend
+*.blend1
+*.blend2
+*.ai
+*.aup3
+
+# Temporary / export / backup folders
+temp/
+tmp/
+exports/
+work/
+backup/
+backups/
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Misc local cache
+.cache/
