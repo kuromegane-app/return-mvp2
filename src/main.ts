@@ -81,6 +81,23 @@ const CONFIG = {
   safetySeconds: 240,
 };
 
+type StageEditorObject = { id: string; type: string; x: number; y: number; z: number; liftY?: number; maxY?: number; radius?: number; pushY?: number; speed?: number; phase?: number };
+type StageEditorData = { version: number; stage: string; objects: StageEditorObject[] };
+const STAGE_EDITOR_KEY = 'jet-leeman-tokyo-stage-editor-v1';
+function readStageEditorData(): StageEditorData | null {
+  try {
+    const raw = localStorage.getItem(STAGE_EDITOR_KEY);
+    if (!raw) return null;
+    const value: unknown = JSON.parse(raw);
+    if (!value || typeof value !== 'object') return null;
+    const parsed = value as Partial<StageEditorData>;
+    if (parsed.version !== 1 || parsed.stage !== 'TOKYO_0000-1500' || !Array.isArray(parsed.objects) || parsed.objects.length > 600) return null;
+    const valid = parsed.objects.every((item) => item && typeof item.id === 'string' && typeof item.type === 'string' && ['x','y','z'].every((key) => Number.isFinite(item[key as 'x' | 'y' | 'z'])));
+    return valid ? parsed as StageEditorData : null;
+  } catch { return null; }
+}
+const EDITOR_STAGE_DATA = readStageEditorData();
+
 const RING_LAYOUT = [
   // Ring 1 is still the calibration target for a PERFECT straight launch.
   // The longer stage keeps alternating height/side choices through the city.
@@ -114,6 +131,13 @@ const RING_LAYOUT = [
   { x: 16,  z: 4600, height: 38, liftY: 4 },
   { x: 0,   z: 4850, height: 26, liftY: 2 },
 ] as const;
+const ACTIVE_RING_LAYOUT: { x: number; z: number; height: number; liftY: number }[] = EDITOR_STAGE_DATA
+  ? [
+      ...EDITOR_STAGE_DATA.objects.filter((o) => o.type === 'ring' && o.z >= 0 && o.z <= 1500)
+        .sort((a, b) => a.z - b.z).map((o) => ({ x: o.x, z: o.z, height: o.y, liftY: Number.isFinite(o.liftY) ? o.liftY! : 1 })),
+      ...RING_LAYOUT.filter((o) => o.z > 1500),
+    ]
+  : [...RING_LAYOUT];
 
 const BUILDING_LAYOUT = [
   // side: -1 = left, 1 = right. inner is the distance from center to the facade.
@@ -215,6 +239,7 @@ type MovingObstacle = {
   root: pc.Entity;
   z: number;
   y: number;
+  baseX: number;
   halfWidth: number;
   halfHeight: number;
   travel: number;
@@ -491,7 +516,7 @@ root.innerHTML = `
       <div><span>地面からの高さ</span><strong><b id="height">1.2</b><small>m</small></strong></div>
       <div><span>状態</span><strong id="state">準備中</strong></div>
     </div>
-    <div class="target-progress"><span>リング <b id="hit-count">0 / ${RING_LAYOUT.length}</b></span><span>コイン <b id="coin-count">0</b></span><span id="target-status">燃料 100%</span></div>
+    <div class="target-progress"><span>リング <b id="hit-count">0 / ${ACTIVE_RING_LAYOUT.length}</b></span><span>コイン <b id="coin-count">0</b></span><span id="target-status">燃料 100%</span></div>
   </section>
   <div class="idle-hint game-ui" aria-hidden="true">左右に引いて発射方向を決める<span>中央で離すほど初速アップ</span></div>
   <section class="bottom-panel game-ui">
@@ -671,7 +696,7 @@ root.innerHTML = `
       <span>リングボーナス</span><b id="result-ring-coins">0</b>
       <span>飛距離ボーナス</span><b id="result-distance-coins">0</b>
       <span>帰宅ボーナス</span><b id="result-goal-coins">0</b>
-      <span>通過リング</span><b id="result-rings">0 / ${RING_LAYOUT.length}</b>
+      <span>通過リング</span><b id="result-rings">0 / ${ACTIVE_RING_LAYOUT.length}</b>
     </div>
     <div class="result-drop">
       <div><span>装備抽選率</span><strong id="drop-chance">0%</strong></div>
@@ -1449,8 +1474,8 @@ async function start(): Promise<void> {
   ringAvailableMaterial.update();
   const ringUsedMaterial = material(new pc.Color(0.42, 0.48, 0.52));
   const rings: RingGate[] = [];
-  for (let i = 0; i < RING_LAYOUT.length; i++) {
-    const layout = RING_LAYOUT[i];
+  for (let i = 0; i < ACTIVE_RING_LAYOUT.length; i++) {
+    const layout = ACTIVE_RING_LAYOUT[i];
     const y = groundSurfaceYAt(layout.z) + layout.height;
     const parts: pc.Entity[] = [];
     const segments = 16;
@@ -1727,7 +1752,13 @@ async function start(): Promise<void> {
   box('TowerCrossbarLow', new pc.Vec3(15, 0.8, 1.0), new pc.Vec3(towerX, 9, towerZ), landmarkOrange);
 
   type FountainZone = { x: number; z: number; radius: number; maxY: number; pushY: number };
-  const fountains: FountainZone[] = [{ x: -28, z: 1080, radius: 11.5, maxY: 27, pushY: 24 }, { x: -34, z: 3420, radius: 15, maxY: 46, pushY: 34 }];
+  const fountains: FountainZone[] = EDITOR_STAGE_DATA
+    ? [
+        ...EDITOR_STAGE_DATA.objects.filter((o) => o.type === 'fountain' && o.z >= 0 && o.z <= 1500)
+          .map((o) => ({ x: o.x, z: o.z, radius: Math.max(1, o.radius ?? 11.5), maxY: Math.max(1, o.maxY ?? 50), pushY: Math.max(0, o.pushY ?? 24) })),
+        { x: -34, z: 3420, radius: 15, maxY: 46, pushY: 34 },
+      ]
+    : [{ x: -28, z: 1080, radius: 11.5, maxY: 27, pushY: 24 }, { x: -34, z: 3420, radius: 15, maxY: 46, pushY: 34 }];
   for (const fountain of fountains) {
     const basin = new pc.Entity('FountainBasin');
     basin.addComponent('render', { type: 'cylinder', material: fountainStone, castShadows: false });
@@ -1759,7 +1790,7 @@ async function start(): Promise<void> {
   windowMaterialMoving.update();
   const movingObstacles: MovingObstacle[] = [];
 
-  function createMovingObstacle(kind: 'car' | 'train' | 'plane' | 'monorail', z: number, y: number, phaseValue: number, speed: number): void {
+  function createMovingObstacle(kind: 'car' | 'train' | 'plane' | 'monorail', z: number, y: number, phaseValue: number, speed: number, baseX = 0): void {
     const rootMoving = new pc.Entity(`${kind}-${movingObstacles.length + 1}`);
     app.root.addChild(rootMoving);
     const windows: MovingWindow[] = [];
@@ -1804,7 +1835,7 @@ async function start(): Promise<void> {
       travel = corridorHalfWidthAt(z) + 48;
     }
     const obstacle: MovingObstacle = {
-      id: movingObstacles.length + 1, kind, root: rootMoving, z, y, halfWidth, halfHeight, travel, speed, phase: phaseValue, windows, collisionCooldown: 0,
+      id: movingObstacles.length + 1, kind, root: rootMoving, z, y, baseX, halfWidth, halfHeight, travel, speed, phase: phaseValue, windows, collisionCooldown: 0,
     };
     movingObstacles.push(obstacle);
     // Place it at its actual route position immediately. Without this, timeScale=0 leaves new vehicles at world origin and hides the launch arrow.
@@ -1812,23 +1843,44 @@ async function start(): Promise<void> {
     const initialPingPong = initialRaw <= 1 ? initialRaw : 2 - initialRaw;
     if (kind === 'plane') {
       const t = ((phaseValue % 1) + 1) % 1;
-      rootMoving.setPosition(-travel + t * travel * 2, y + t * 38, z + t * 22);
+      rootMoving.setPosition(baseX - travel + t * travel * 2, y + t * 38, z + t * 22);
     } else {
-      rootMoving.setPosition(-travel + initialPingPong * travel * 2, y, z);
+      rootMoving.setPosition(baseX - travel + initialPingPong * travel * 2, y, z);
     }
   }
 
-  // Elevated monorail guideways make the high train readable before the vehicle crosses.
-  box('MonorailGuide-A', new pc.Vec3(corridorHalfWidthAt(1210) * 2 + 24, 0.8, 1.4), new pc.Vec3(0, 11.0, 1210), signPostMaterial);
-  box('MonorailGuide-B', new pc.Vec3(corridorHalfWidthAt(1440) * 2 + 24, 0.8, 1.4), new pc.Vec3(0, 14.0, 1440), signPostMaterial);
+  // Editor and game now share the same moving-object placement for 0-1500m.
+  // During flight, X is the *center* of the moving object's traverse, not its instant position.
+  type MovingSpec = { kind: 'car' | 'train' | 'plane' | 'monorail'; x: number; z: number; y: number; phase: number; speed: number };
+  const defaultMovingSpecs: MovingSpec[] = [
+    { kind: 'plane', x: 0, z: 1015, y: 18.0, phase: 0.10, speed: 0.20 },
+    { kind: 'car', x: 0, z: 1100, y: 2.9, phase: 0.55, speed: 0.38 },
+    { kind: 'monorail', x: 0, z: 1210, y: 14.2, phase: 0.18, speed: 0.22 },
+    { kind: 'train', x: 0, z: 1310, y: 4.7, phase: 0.25, speed: 0.22 },
+    { kind: 'plane', x: 0, z: 1410, y: 22.0, phase: 0.62, speed: 0.21 },
+    { kind: 'monorail', x: 0, z: 1440, y: 17.2, phase: 0.74, speed: 0.25 },
+    { kind: 'car', x: 0, z: 1500, y: 2.9, phase: 0.05, speed: 0.42 },
+  ];
+  const activeMovingSpecs: MovingSpec[] = EDITOR_STAGE_DATA
+    ? EDITOR_STAGE_DATA.objects
+        .filter((o) => ['car', 'train', 'plane', 'monorail'].includes(o.type) && o.z >= 0 && o.z <= 1500)
+        .sort((a, b) => a.z - b.z)
+        .map((o) => ({
+          kind: o.type as MovingSpec['kind'], x: o.x, z: o.z, y: o.y,
+          phase: Number.isFinite(o.phase) ? o.phase! : 0,
+          speed: Number.isFinite(o.speed) ? Math.max(0, o.speed!) : 0.22,
+        }))
+    : defaultMovingSpecs;
 
-  createMovingObstacle('plane',    1015, 18.0, 0.10, 0.20);
-  createMovingObstacle('car',      1100, 2.9,  0.55, 0.38);
-  createMovingObstacle('monorail', 1210, 14.2, 0.18, 0.22);
-  createMovingObstacle('train',    1310, 4.7,  0.25, 0.22);
-  createMovingObstacle('plane',    1410, 22.0, 0.62, 0.21);
-  createMovingObstacle('monorail', 1440, 17.2, 0.74, 0.25);
-  createMovingObstacle('car',      1500, 2.9,  0.05, 0.42);
+  // Guideways are generated from the edited monorail list (deleted monorails remove their guideway).
+  for (const spec of activeMovingSpecs.filter((item) => item.kind === 'monorail')) {
+    box(`MonorailGuide-${spec.z}`,
+      new pc.Vec3(corridorHalfWidthAt(spec.z) * 2 + 24, 0.8, 1.4),
+      new pc.Vec3(spec.x, spec.y - 3.2, spec.z), signPostMaterial);
+  }
+  for (const spec of activeMovingSpecs) {
+    createMovingObstacle(spec.kind, spec.z, spec.y, spec.phase, spec.speed, spec.x);
+  }
 
   const origin = new pc.Vec3(0, groundSurfaceYAt(0) + CONFIG.radius + CONFIG.launchClearance, 0);
   const ball = new pc.Entity('Player');
@@ -2123,9 +2175,9 @@ async function start(): Promise<void> {
       const ping = raw <= 1 ? raw : 2 - raw;
       if (obstacle.kind === 'plane') {
         const t = ((obstacle.phase % 1) + 1) % 1;
-        obstacle.root.setPosition(-obstacle.travel + t * obstacle.travel * 2, obstacle.y + t * 38, obstacle.z + t * 22);
+        obstacle.root.setPosition(obstacle.baseX - obstacle.travel + t * obstacle.travel * 2, obstacle.y + t * 38, obstacle.z + t * 22);
       } else {
-        obstacle.root.setPosition(-obstacle.travel + ping * obstacle.travel * 2, obstacle.y, obstacle.z);
+        obstacle.root.setPosition(obstacle.baseX - obstacle.travel + ping * obstacle.travel * 2, obstacle.y, obstacle.z);
       }
       for (const window of obstacle.windows) {
         window.broken = false;
@@ -2463,14 +2515,14 @@ async function start(): Promise<void> {
       obstacle.collisionCooldown = Math.max(0, obstacle.collisionCooldown - dt);
       const rawCycle = ((elapsed * obstacle.speed + obstacle.phase) % 2 + 2) % 2;
       const pingPong = rawCycle <= 1 ? rawCycle : 2 - rawCycle;
-      let x = -obstacle.travel + pingPong * obstacle.travel * 2;
+      let x = obstacle.baseX - obstacle.travel + pingPong * obstacle.travel * 2;
       let obstacleY = obstacle.y;
       let obstacleZ = obstacle.z;
       if (obstacle.kind === 'plane') {
         // True takeoff path: the aircraft changes X, Y and Z together instead of merely being tilted.
         // It enters low on the left and physically climbs toward the upper-right while moving forward.
         const takeoffT = ((elapsed * obstacle.speed + obstacle.phase) % 1 + 1) % 1;
-        x = -obstacle.travel + takeoffT * obstacle.travel * 2;
+        x = obstacle.baseX - obstacle.travel + takeoffT * obstacle.travel * 2;
         obstacleY = obstacle.y + takeoffT * 38.0;
         obstacleZ = obstacle.z + takeoffT * 22.0;
         // The aircraft model's nose points along local +X. Match its attitude to the actual
@@ -2564,7 +2616,7 @@ async function start(): Promise<void> {
       showPickupFeedback(`+${CONFIG.ringCoinBonus}`, 'ring');
       ring.effectTime = 0;
       const v = body!.linearVelocity;
-      const ringLift = RING_LAYOUT[ring.id - 1].liftY * percent('ringLift');
+      const ringLift = ACTIVE_RING_LAYOUT[ring.id - 1].liftY * percent('ringLift');
       const ringBoost = CONFIG.ringBoostZ * percent('ringBoost');
       velocityBuffer.set(
         v.x,
