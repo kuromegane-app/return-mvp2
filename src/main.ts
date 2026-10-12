@@ -81,6 +81,23 @@ const CONFIG = {
   safetySeconds: 240,
 };
 
+type StageEditorObject = { id: string; type: string; x: number; y: number; z: number; liftY?: number; maxY?: number; radius?: number; pushY?: number };
+type StageEditorData = { version: number; stage: string; objects: StageEditorObject[] };
+const STAGE_EDITOR_KEY = 'jet-leeman-tokyo-stage-editor-v1';
+function readStageEditorData(): StageEditorData | null {
+  try {
+    const raw = localStorage.getItem(STAGE_EDITOR_KEY);
+    if (!raw) return null;
+    const value: unknown = JSON.parse(raw);
+    if (!value || typeof value !== 'object') return null;
+    const parsed = value as Partial<StageEditorData>;
+    if (parsed.version !== 1 || parsed.stage !== 'TOKYO_0000-1500' || !Array.isArray(parsed.objects) || parsed.objects.length > 600) return null;
+    const valid = parsed.objects.every((item) => item && typeof item.id === 'string' && typeof item.type === 'string' && ['x','y','z'].every((key) => Number.isFinite(item[key as 'x' | 'y' | 'z'])));
+    return valid ? parsed as StageEditorData : null;
+  } catch { return null; }
+}
+const EDITOR_STAGE_DATA = readStageEditorData();
+
 const RING_LAYOUT = [
   // Ring 1 is still the calibration target for a PERFECT straight launch.
   // The longer stage keeps alternating height/side choices through the city.
@@ -114,6 +131,13 @@ const RING_LAYOUT = [
   { x: 16,  z: 4600, height: 38, liftY: 4 },
   { x: 0,   z: 4850, height: 26, liftY: 2 },
 ] as const;
+const ACTIVE_RING_LAYOUT: { x: number; z: number; height: number; liftY: number }[] = EDITOR_STAGE_DATA
+  ? [
+      ...EDITOR_STAGE_DATA.objects.filter((o) => o.type === 'ring' && o.z >= 0 && o.z <= 1500)
+        .sort((a, b) => a.z - b.z).map((o) => ({ x: o.x, z: o.z, height: o.y, liftY: Number.isFinite(o.liftY) ? o.liftY! : 1 })),
+      ...RING_LAYOUT.filter((o) => o.z > 1500),
+    ]
+  : [...RING_LAYOUT];
 
 const BUILDING_LAYOUT = [
   // side: -1 = left, 1 = right. inner is the distance from center to the facade.
@@ -491,7 +515,7 @@ root.innerHTML = `
       <div><span>地面からの高さ</span><strong><b id="height">1.2</b><small>m</small></strong></div>
       <div><span>状態</span><strong id="state">準備中</strong></div>
     </div>
-    <div class="target-progress"><span>リング <b id="hit-count">0 / ${RING_LAYOUT.length}</b></span><span>コイン <b id="coin-count">0</b></span><span id="target-status">燃料 100%</span></div>
+    <div class="target-progress"><span>リング <b id="hit-count">0 / ${ACTIVE_RING_LAYOUT.length}</b></span><span>コイン <b id="coin-count">0</b></span><span id="target-status">燃料 100%</span></div>
   </section>
   <div class="idle-hint game-ui" aria-hidden="true">左右に引いて発射方向を決める<span>中央で離すほど初速アップ</span></div>
   <section class="bottom-panel game-ui">
@@ -671,7 +695,7 @@ root.innerHTML = `
       <span>リングボーナス</span><b id="result-ring-coins">0</b>
       <span>飛距離ボーナス</span><b id="result-distance-coins">0</b>
       <span>帰宅ボーナス</span><b id="result-goal-coins">0</b>
-      <span>通過リング</span><b id="result-rings">0 / ${RING_LAYOUT.length}</b>
+      <span>通過リング</span><b id="result-rings">0 / ${ACTIVE_RING_LAYOUT.length}</b>
     </div>
     <div class="result-drop">
       <div><span>装備抽選率</span><strong id="drop-chance">0%</strong></div>
@@ -1449,8 +1473,8 @@ async function start(): Promise<void> {
   ringAvailableMaterial.update();
   const ringUsedMaterial = material(new pc.Color(0.42, 0.48, 0.52));
   const rings: RingGate[] = [];
-  for (let i = 0; i < RING_LAYOUT.length; i++) {
-    const layout = RING_LAYOUT[i];
+  for (let i = 0; i < ACTIVE_RING_LAYOUT.length; i++) {
+    const layout = ACTIVE_RING_LAYOUT[i];
     const y = groundSurfaceYAt(layout.z) + layout.height;
     const parts: pc.Entity[] = [];
     const segments = 16;
@@ -1727,7 +1751,13 @@ async function start(): Promise<void> {
   box('TowerCrossbarLow', new pc.Vec3(15, 0.8, 1.0), new pc.Vec3(towerX, 9, towerZ), landmarkOrange);
 
   type FountainZone = { x: number; z: number; radius: number; maxY: number; pushY: number };
-  const fountains: FountainZone[] = [{ x: -28, z: 1080, radius: 11.5, maxY: 27, pushY: 24 }, { x: -34, z: 3420, radius: 15, maxY: 46, pushY: 34 }];
+  const fountains: FountainZone[] = EDITOR_STAGE_DATA
+    ? [
+        ...EDITOR_STAGE_DATA.objects.filter((o) => o.type === 'fountain' && o.z >= 0 && o.z <= 1500)
+          .map((o) => ({ x: o.x, z: o.z, radius: Math.max(1, o.radius ?? 11.5), maxY: Math.max(1, o.maxY ?? 50), pushY: Math.max(0, o.pushY ?? 24) })),
+        { x: -34, z: 3420, radius: 15, maxY: 46, pushY: 34 },
+      ]
+    : [{ x: -28, z: 1080, radius: 11.5, maxY: 27, pushY: 24 }, { x: -34, z: 3420, radius: 15, maxY: 46, pushY: 34 }];
   for (const fountain of fountains) {
     const basin = new pc.Entity('FountainBasin');
     basin.addComponent('render', { type: 'cylinder', material: fountainStone, castShadows: false });
@@ -2564,7 +2594,7 @@ async function start(): Promise<void> {
       showPickupFeedback(`+${CONFIG.ringCoinBonus}`, 'ring');
       ring.effectTime = 0;
       const v = body!.linearVelocity;
-      const ringLift = RING_LAYOUT[ring.id - 1].liftY * percent('ringLift');
+      const ringLift = ACTIVE_RING_LAYOUT[ring.id - 1].liftY * percent('ringLift');
       const ringBoost = CONFIG.ringBoostZ * percent('ringBoost');
       velocityBuffer.set(
         v.x,
