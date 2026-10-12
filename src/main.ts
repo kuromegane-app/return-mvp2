@@ -82,7 +82,43 @@ const CONFIG = {
 };
 
 type StageEditorObject = { id: string; type: string; x: number; y: number; z: number; liftY?: number; maxY?: number; radius?: number; pushY?: number; speed?: number; phase?: number; spawnMode?: 'legacy' | 'proximity'; triggerAhead?: number; repeatSeconds?: number };
-type StageEditorData = { version: number; stage: string; objects: StageEditorObject[] };
+type RoadProfilePoint = { z: number; left: number; right: number };
+// The sketch has no explicit X-axis scale. These are provisional metres, editable in the stage editor.
+const TOKYO_PLAN_ROAD: RoadProfilePoint[] = [
+  { z: 0, left: 38, right: 38 }, { z: 300, left: 38, right: 38 },
+  { z: 301, left: 65, right: 65 }, { z: 660, left: 65, right: 65 },
+  { z: 710, left: 84, right: 84 }, { z: 770, left: 102, right: 102 },
+  { z: 1010, left: 102, right: 102 }, { z: 1060, left: 96, right: 96 },
+  { z: 1120, left: 78, right: 78 }, { z: 1150, left: 65, right: 65 },
+  { z: 1500, left: 65, right: 65 },
+];
+type StageEditorData = { version: number; stage: string; objects: StageEditorObject[]; road?: { points: RoadProfilePoint[] } };
+function validateRoadProfile(value: unknown): RoadProfilePoint[] | null {
+  if (!Array.isArray(value) || value.length < 2 || value.length > 80) return null;
+  const points: RoadProfilePoint[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') return null;
+    const v = entry as Partial<RoadProfilePoint>;
+    if (![v.z, v.left, v.right].every(Number.isFinite) || v.z! < 0 || v.z! > 1500 || v.left! < 15 || v.left! > 112 || v.right! < 15 || v.right! > 112) return null;
+    points.push({ z: v.z!, left: v.left!, right: v.right! });
+  }
+  points.sort((a, b) => a.z - b.z);
+  if (points[0].z !== 0 || points[points.length - 1].z !== 1500 || points.some((p, i) => i > 0 && p.z <= points[i - 1].z)) return null;
+  return points;
+}
+function roadAt(z: number, profile: RoadProfilePoint[]): { left: number; right: number } {
+  const clamped = Math.max(0, Math.min(1500, z));
+  for (let i = 1; i < profile.length; i++) {
+    const b = profile[i];
+    if (clamped > b.z) continue;
+    const a = profile[i - 1];
+    const t = Math.max(0, Math.min(1, (clamped - a.z) / (b.z - a.z)));
+    return { left: a.left + (b.left - a.left) * t, right: a.right + (b.right - a.right) * t };
+  }
+  const last = profile[profile.length - 1];
+  return { left: last.left, right: last.right };
+}
+
 const STAGE_EDITOR_KEY = 'jet-leeman-tokyo-stage-editor-v1';
 function readStageEditorData(): StageEditorData | null {
   try {
@@ -93,7 +129,9 @@ function readStageEditorData(): StageEditorData | null {
     const parsed = value as Partial<StageEditorData>;
     if (parsed.version !== 1 || parsed.stage !== 'TOKYO_0000-1500' || !Array.isArray(parsed.objects) || parsed.objects.length > 600) return null;
     const valid = parsed.objects.every((item) => item && typeof item.id === 'string' && typeof item.type === 'string' && ['x','y','z'].every((key) => Number.isFinite(item[key as 'x' | 'y' | 'z'])));
-    return valid ? parsed as StageEditorData : null;
+    if (!valid) return null;
+    if (parsed.road && !validateRoadProfile(parsed.road.points)) return null;
+    return parsed as StageEditorData;
   } catch { return null; }
 }
 // STAGE EDITOR v1.3: the shared test URL contains an immutable snapshot of the editor.
@@ -105,7 +143,7 @@ function readSharedStageFromUrl(): StageEditorData | null {
     if (!token || token.length > 16000 || !/^[A-Za-z0-9_-]+$/.test(token)) return null;
     const raw = atob(token.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - token.length % 4) % 4));
     const data: unknown = JSON.parse(raw);
-    if (!Array.isArray(data) || data[0] !== 1 || !Array.isArray(data[1]) || data[1].length > 600) return null;
+    if (!Array.isArray(data) || (data[0] !== 1 && data[0] !== 2) || !Array.isArray(data[1]) || data[1].length > 600) return null;
     const objects: StageEditorObject[] = [];
     for (const row of data[1]) {
       if (!Array.isArray(row) || row.length < 4 || !Number.isInteger(row[0]) || row[0] < 0 || row[0] >= SHARED_OBJECT_TYPES.length) return null;
@@ -128,11 +166,16 @@ function readSharedStageFromUrl(): StageEditorData | null {
       }
       objects.push(o);
     }
-    return { version: 1, stage: 'TOKYO_0000-1500', objects };
+    const points = data[0] === 2 ? validateRoadProfile(data[2]?.map((row: unknown) => Array.isArray(row) ? { z: row[0], left: row[1], right: row[2] } : null)) : TOKYO_PLAN_ROAD;
+    if (!points) return null;
+    return { version: 1, stage: 'TOKYO_0000-1500', objects, road: { points } };
   } catch { return null; }
 }
 const SHARED_STAGE_DATA = readSharedStageFromUrl();
 const EDITOR_STAGE_DATA = SHARED_STAGE_DATA ?? readStageEditorData();
+const ACTIVE_ROAD_POINTS = EDITOR_STAGE_DATA
+  ? validateRoadProfile(EDITOR_STAGE_DATA.road?.points) ?? TOKYO_PLAN_ROAD
+  : null;
 const IS_SHARED_STAGE_TEST = SHARED_STAGE_DATA !== null;
 const SHARED_URL_INVALID = new URLSearchParams(location.search).has('stageTest') && !SHARED_STAGE_DATA;
 
@@ -1155,6 +1198,10 @@ function groundSurfaceYAt(_z: number): number {
 }
 
 function corridorHalfWidthAt(z: number): number {
+  if (ACTIVE_ROAD_POINTS && z >= 0 && z <= 1500) {
+    const road = roadAt(z, ACTIVE_ROAD_POINTS);
+    return Math.max(road.left, road.right);
+  }
   const t = clamp((z - CONFIG.corridorWidenStartZ) /
     Math.max(1, CONFIG.corridorWidenEndZ - CONFIG.corridorWidenStartZ), 0, 1);
   // Smooth widening keeps the opening gradual instead of feeling like a sudden arena change.
@@ -1304,7 +1351,7 @@ async function start(): Promise<void> {
   light.setEulerAngles(50, -30, 0);
   app.root.addChild(light);
 
-  const groundMaterial = material(new pc.Color(0.34, 0.43, 0.50));
+  const groundMaterial = material(ACTIVE_ROAD_POINTS ? new pc.Color(0.20, 0.27, 0.32) : new pc.Color(0.34, 0.43, 0.50));
   const ballMaterial = material(new pc.Color(1, 0.39, 0.13));
   const lineMaterial = material(new pc.Color(0.58, 0.65, 0.69));
   const markerMaterial = material(new pc.Color(0.80, 0.87, 0.89));
@@ -1331,15 +1378,16 @@ async function start(): Promise<void> {
 
   // Flat test course. This makes vertical motion easy to judge before terrain returns.
   const ground = new pc.Entity('Ground');
+  const activeGroundWidth = ACTIVE_ROAD_POINTS ? 270 : CONFIG.courseWidth;
   ground.setPosition(0, -0.5, CONFIG.courseLength * 0.5);
   ground.addComponent('collision', {
     type: 'box',
-    halfExtents: new pc.Vec3(CONFIG.courseWidth * 0.5, 0.5, CONFIG.courseLength * 0.5),
+    halfExtents: new pc.Vec3(activeGroundWidth * 0.5, 0.5, CONFIG.courseLength * 0.5),
   });
   ground.addComponent('rigidbody', {
     type: 'static', friction: 0.9, restitution: CONFIG.groundRestitution,
   });
-  box('GroundVisual', new pc.Vec3(CONFIG.courseWidth, 1, CONFIG.courseLength),
+  box('GroundVisual', new pc.Vec3(activeGroundWidth, 1, CONFIG.courseLength),
     new pc.Vec3(), groundMaterial, ground);
   app.root.addChild(ground);
   const groundEntities = new Set<pc.Entity>([ground]);
@@ -1457,7 +1505,7 @@ async function start(): Promise<void> {
     box(`${name}-Visual`, new pc.Vec3(width, height, depth), new pc.Vec3(), mat, e); app.root.addChild(e);
   }
 
-  for (let i = 0; i < BUILDING_LAYOUT.length; i++) {
+  if (!ACTIVE_ROAD_POINTS) for (let i = 0; i < BUILDING_LAYOUT.length; i++) {
     const layout = BUILDING_LAYOUT[i];
     const side = layout.side;
     const widen = Math.max(0, corridorHalfWidthAt(layout.z) - CONFIG.corridorHalfWidth);
@@ -1490,6 +1538,35 @@ async function start(): Promise<void> {
     app.root.addChild(building);
   }
 
+  // TOKYO 0-1500 sketch: variable road width controls BOTH visible asphalt and the
+  // inner faces of roadside buildings. Segments leave small breaks, allowing rebound and recovery.
+  if (ACTIVE_ROAD_POINTS) {
+    const asphalt = material(new pc.Color(0.46, 0.49, 0.53));
+    const kerb = material(new pc.Color(0.87, 0.89, 0.87));
+    for (let z = 5, i = 0; z < 1500; z += 10, i++) {
+      const road = roadAt(z, ACTIVE_ROAD_POINTS);
+      box(`PlannedRoad-${i}`, new pc.Vec3(road.left + road.right, 0.035, 10.04),
+        new pc.Vec3((road.right - road.left) * 0.5, 0.045, z), asphalt);
+      for (const side of [-1, 1] as const) {
+        const edgeX = side < 0 ? -road.left : road.right;
+        box(`RoadEdge-${side}-${i}`, new pc.Vec3(0.33, 0.045, 9.4),
+          new pc.Vec3(edgeX, 0.072, z), kerb);
+      }
+    }
+    // Side facades follow the edited boundary and cannot block a route drawn inside it.
+    for (let z = 14, i = 0; z < 1490; z += 28, i++) {
+      const road = roadAt(z, ACTIVE_ROAD_POINTS);
+      for (const side of [-1, 1] as const) {
+        const boundary = side < 0 ? road.left : road.right;
+        const width = 15;
+        const height = 35 + (i * 13 + (side > 0 ? 9 : 0)) % 36;
+        const centerX = side * (boundary + 1.6 + width * 0.5);
+        staticCityBuilding(`PlannedBuilding-${side}-${i}`, centerX, z, width, height, 24,
+          (i + (side > 0 ? 1 : 0)) % 2 === 0 ? buildingMaterialA : buildingMaterialB);
+      }
+    }
+  }
+
   // STEP29 prototype extension: procedural city blocks keep 1500-5000m readable without art-polish work.
   for (let z = 1600, i = 0; z < 4920; z += 120, i++) {
     for (const side of [-1, 1] as const) {
@@ -1509,6 +1586,7 @@ async function start(): Promise<void> {
   }
   for (const x of [-20, 0, 20]) {
     for (let z = 10; z <= CONFIG.courseLength; z += 40) {
+      if (ACTIVE_ROAD_POINTS && z <= 1500) continue;
       box(`Marker-${x}-${z}`, new pc.Vec3(0.12, 0.03, 18),
         new pc.Vec3(x, groundSurfaceYAt(z) + 0.04, z), markerMaterial);
     }
@@ -1571,7 +1649,7 @@ async function start(): Promise<void> {
     }
   }
   // Reachable bonus arcs: slightly off the main line, never outside the existing corridor.
-  const bonusOffsets = [
+  const bonusOffsets = ACTIVE_ROAD_POINTS ? [] : [
     { ring: 1, side: 1, dx: 7, dy: 2.0 },
     { ring: 2, side: -1, dx: 8, dy: -1.5 },
     { ring: 3, side: 1, dx: 7, dy: 2.5 },
@@ -1608,6 +1686,8 @@ async function start(): Promise<void> {
     }
   }
 
+  // Old 0-1500 prototype trails were independent of the editor. Suppress them in test mode.
+  if (!ACTIVE_ROAD_POINTS) {
   // Rooftop route: climb over low buildings on the right.
   addCoinTrail([
     { x: 10, y: 11, z: 820 },
@@ -1630,6 +1710,8 @@ async function start(): Promise<void> {
     { x: 48, y: 16, z: 1350 },
     { x: 10, y: 13, z: 1430 },
   ], 6);
+
+  }
 
   function routePositionAtZ(z: number): pc.Vec3 {
     if (z <= routePoints[0].z) return new pc.Vec3(routePoints[0].x, routePoints[0].y, z);
@@ -1708,7 +1790,7 @@ async function start(): Promise<void> {
     { kind: 'roofWide',     x: 20.0, y: 31.0, z: 1460 },
   ] as const;
 
-  for (let i = 0; i < breakableSpecs.length; i++) {
+  for (let i = 0; i < (ACTIVE_ROAD_POINTS ? 0 : breakableSpecs.length); i++) {
     const spec = breakableSpecs[i];
     const rootProp = new pc.Entity(`BreakableSign-${i + 1}`);
     const groundMounted = spec.kind === 'groundTall' || spec.kind === 'groundRound';
@@ -1773,6 +1855,9 @@ async function start(): Promise<void> {
     return e;
   }
 
+  // The previous low buildings and Tokyo Tower belonged to a discarded prototype route.
+  // Keep the legacy view for ordinary play but never put these into an edited stage.
+  if (!ACTIVE_ROAD_POINTS) {
   // Low buildings create an over-the-rooftop route instead of another wall corridor.
   staticLandmarkBox('LowBuilding-A', new pc.Vec3(22, 8, 28), new pc.Vec3(35, 4, 965), buildingMaterialB, 0.6);
   staticLandmarkBox('LowBuilding-B', new pc.Vec3(24, 10, 30), new pc.Vec3(43, 5, 1075), buildingMaterialA, 0.6);
@@ -1782,8 +1867,10 @@ async function start(): Promise<void> {
   box('LowBuilding-C-RoofSign', new pc.Vec3(11, 4.0, 0.6), new pc.Vec3(-48, 9.5, 1360), signMaterial);
 
   // Tokyo-Tower-like landmark: four physical legs with a large central gap players can thread through.
+  }
   const towerX = 42;
   const towerZ = 1285;
+  if (!ACTIVE_ROAD_POINTS) {
   const towerLegOffsets = [
     [-6.5, -5.0], [6.5, -5.0], [-4.0, 5.0], [4.0, 5.0],
   ] as const;
@@ -1796,6 +1883,7 @@ async function start(): Promise<void> {
   box('TowerDeck', new pc.Vec3(17, 1.2, 12), new pc.Vec3(towerX, 20, towerZ), landmarkOrange);
   box('TowerTop', new pc.Vec3(1.6, 20, 1.6), new pc.Vec3(towerX, 35, towerZ), landmarkOrange);
   box('TowerCrossbarLow', new pc.Vec3(15, 0.8, 1.0), new pc.Vec3(towerX, 9, towerZ), landmarkOrange);
+  }
 
   type FountainZone = { x: number; z: number; radius: number; maxY: number; pushY: number };
   const fountains: FountainZone[] = EDITOR_STAGE_DATA
@@ -2541,6 +2629,7 @@ async function start(): Promise<void> {
   }
 
   function updateTowerPass(): void {
+    if (ACTIVE_ROAD_POINTS) return;
     if (towerPassRegistered || phase !== 'flying') return;
     const p = ball.getPosition();
     const dz = p.z - previousPosition.z;
