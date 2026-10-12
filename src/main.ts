@@ -81,7 +81,9 @@ const CONFIG = {
   safetySeconds: 240,
 };
 
-type StageEditorObject = { id: string; type: string; x: number; y: number; z: number; liftY?: number; maxY?: number; radius?: number; pushY?: number; speed?: number; phase?: number; spawnMode?: 'legacy' | 'proximity'; triggerAhead?: number; repeatSeconds?: number };
+type StageEditorObject = { id: string; type: string; x: number; y: number; z: number; liftY?: number; maxY?: number; radius?: number; pushY?: number; speed?: number; phase?: number; spawnMode?: 'legacy' | 'proximity'; triggerAhead?: number; repeatSeconds?: number; signKind?: SignKind };
+const SIGN_KINDS = ['wallVertical', 'wallRound', 'wallWide', 'roofWide', 'groundTall', 'groundRound'] as const;
+type SignKind = typeof SIGN_KINDS[number];
 type RoadProfilePoint = { z: number; left: number; right: number };
 // The sketch has no explicit X-axis scale. These are provisional metres, editable in the stage editor.
 const TOKYO_PLAN_ROAD: RoadProfilePoint[] = [
@@ -143,7 +145,7 @@ function readSharedStageFromUrl(): StageEditorData | null {
     if (!token || token.length > 16000 || !/^[A-Za-z0-9_-]+$/.test(token)) return null;
     const raw = atob(token.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - token.length % 4) % 4));
     const data: unknown = JSON.parse(raw);
-    if (!Array.isArray(data) || (data[0] !== 1 && data[0] !== 2) || !Array.isArray(data[1]) || data[1].length > 600) return null;
+    if (!Array.isArray(data) || (data[0] !== 1 && data[0] !== 2 && data[0] !== 3) || !Array.isArray(data[1]) || data[1].length > 600) return null;
     const objects: StageEditorObject[] = [];
     for (const row of data[1]) {
       if (!Array.isArray(row) || row.length < 4 || !Number.isInteger(row[0]) || row[0] < 0 || row[0] >= SHARED_OBJECT_TYPES.length) return null;
@@ -152,6 +154,7 @@ function readSharedStageFromUrl(): StageEditorData | null {
       const type = SHARED_OBJECT_TYPES[typeIndex];
       const o: StageEditorObject = { id: `url-${objects.length + 1}`, type, x, y, z };
       if (type === 'ring') o.liftY = Number.isFinite(row[4]) ? row[4] : 1;
+      if (type === 'sign' && Number.isInteger(row[4]) && row[4] >= 0 && row[4] < SIGN_KINDS.length) o.signKind = SIGN_KINDS[row[4]];
       if (type === 'fountain') {
         o.maxY = Number.isFinite(row[4]) ? row[4] : 50;
         o.radius = Number.isFinite(row[5]) ? row[5] : 11.5;
@@ -166,7 +169,7 @@ function readSharedStageFromUrl(): StageEditorData | null {
       }
       objects.push(o);
     }
-    const points = data[0] === 2 ? validateRoadProfile(data[2]?.map((row: unknown) => Array.isArray(row) ? { z: row[0], left: row[1], right: row[2] } : null)) : TOKYO_PLAN_ROAD;
+    const points = data[0] >= 2 ? validateRoadProfile(data[2]?.map((row: unknown) => Array.isArray(row) ? { z: row[0], left: row[1], right: row[2] } : null)) : TOKYO_PLAN_ROAD;
     if (!points) return null;
     return { version: 1, stage: 'TOKYO_0000-1500', objects, road: { points } };
   } catch { return null; }
@@ -289,6 +292,7 @@ type RivalRunner = {
 type BreakPiece = {
   entity: pc.Entity;
   home: pc.Vec3;
+  homeEuler: pc.Vec3;
   velocity: pc.Vec3;
   spin: pc.Vec3;
 };
@@ -1790,11 +1794,23 @@ async function start(): Promise<void> {
     { kind: 'roofWide',     x: 20.0, y: 31.0, z: 1460 },
   ] as const;
 
-  for (let i = 0; i < (ACTIVE_ROAD_POINTS ? 0 : breakableSpecs.length); i++) {
-    const spec = breakableSpecs[i];
+  // When editing a stage, signs come exclusively from the editor data.
+  // This prevents legacy billboards from appearing at positions not shown in the editor.
+  // Earlier JSON/URL versions have no signKind: use a consistent visible default cycle.
+  const activeBreakableSpecs: Array<{ kind: SignKind; x: number; y: number; z: number }> = EDITOR_STAGE_DATA
+    ? EDITOR_STAGE_DATA.objects.filter((o) => o.type === 'sign' && o.z >= 0 && o.z <= 1500)
+        .map((o, i) => ({
+          kind: SIGN_KINDS.includes(o.signKind as SignKind) ? o.signKind! : SIGN_KINDS[i % SIGN_KINDS.length],
+          x: o.x, y: o.y, z: o.z,
+        }))
+    : [...breakableSpecs];
+  for (let i = 0; i < activeBreakableSpecs.length; i++) {
+    const spec = activeBreakableSpecs[i];
     const rootProp = new pc.Entity(`BreakableSign-${i + 1}`);
     const groundMounted = spec.kind === 'groundTall' || spec.kind === 'groundRound';
-    const scaledY = groundMounted ? spec.y + 3.8 : spec.y;
+    // Editor Y always means the billboard centre, regardless of style.
+    // Legacy ground-mounted signs keep their historical placement convention.
+    const scaledY = EDITOR_STAGE_DATA ? spec.y : (groundMounted ? spec.y + 3.8 : spec.y);
     rootProp.setPosition(spec.x, scaledY, spec.z);
     rootProp.setLocalScale(2.0, 2.0, 2.0);
     app.root.addChild(rootProp);
@@ -1802,7 +1818,7 @@ async function start(): Promise<void> {
     const addPiece = (name: string, size: pc.Vec3, home: pc.Vec3, mat: pc.StandardMaterial, euler?: pc.Vec3) => {
       const e = box(name, size, home.clone(), mat, rootProp);
       if (euler) e.setLocalEulerAngles(euler);
-      pieces.push({ entity: e, home: home.clone(), velocity: new pc.Vec3(), spin: new pc.Vec3() });
+      pieces.push({ entity: e, home: home.clone(), homeEuler: euler?.clone() ?? new pc.Vec3(), velocity: new pc.Vec3(), spin: new pc.Vec3() });
     };
     const panelMat = i % 2 === 0 ? signMaterial : signAltMaterial;
     if (spec.kind === 'wallVertical') {
@@ -2301,7 +2317,7 @@ async function start(): Promise<void> {
       for (const piece of prop.pieces) {
         piece.entity.enabled = true;
         piece.entity.setLocalPosition(piece.home);
-        piece.entity.setLocalEulerAngles(0, 0, 0);
+        piece.entity.setLocalEulerAngles(piece.homeEuler);
         piece.velocity.set(0, 0, 0);
         piece.spin.set(0, 0, 0);
       }
