@@ -81,7 +81,7 @@ const CONFIG = {
   safetySeconds: 240,
 };
 
-type StageEditorObject = { id: string; type: string; x: number; y: number; z: number; liftY?: number; maxY?: number; radius?: number; pushY?: number; speed?: number; phase?: number; spawnMode?: 'legacy' | 'proximity'; triggerAhead?: number; repeatSeconds?: number; signKind?: SignKind; width?: number; height?: number; depth?: number };
+type StageEditorObject = { id: string; type: string; x: number; y: number; z: number; liftY?: number; maxY?: number; radius?: number; pushY?: number; speed?: number; phase?: number; spawnMode?: 'legacy' | 'proximity'; triggerAhead?: number; repeatSeconds?: number; signKind?: SignKind; width?: number; height?: number; depth?: number; length?: number; pitch?: number; yaw?: number; spacing?: number };
 const SIGN_KINDS = ['wallVertical', 'wallRound', 'wallWide', 'roofWide', 'groundTall', 'groundRound'] as const;
 type SignKind = typeof SIGN_KINDS[number];
 type RoadProfilePoint = { z: number; left: number; right: number };
@@ -138,14 +138,14 @@ function readStageEditorData(): StageEditorData | null {
 }
 // STAGE EDITOR v1.3: the shared test URL contains an immutable snapshot of the editor.
 // It deliberately does not touch the device's localStorage stage data.
-const SHARED_OBJECT_TYPES = ['ring', 'fountain', 'coin', 'sign', 'car', 'train', 'monorail', 'plane', 'building', 'goal'] as const;
+const SHARED_OBJECT_TYPES = ['ring', 'fountain', 'coin', 'sign', 'car', 'train', 'monorail', 'plane', 'building', 'goal', 'coinLine'] as const;
 function readSharedStageFromUrl(): StageEditorData | null {
   try {
     const token = new URLSearchParams(location.search).get('stageTest');
     if (!token || token.length > 16000 || !/^[A-Za-z0-9_-]+$/.test(token)) return null;
     const raw = atob(token.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - token.length % 4) % 4));
     const data: unknown = JSON.parse(raw);
-    if (!Array.isArray(data) || ![1, 2, 3, 4].includes(data[0]) || !Array.isArray(data[1]) || data[1].length > 600) return null;
+    if (!Array.isArray(data) || ![1, 2, 3, 4, 5].includes(data[0]) || !Array.isArray(data[1]) || data[1].length > 600) return null;
     const objects: StageEditorObject[] = [];
     for (const row of data[1]) {
       if (!Array.isArray(row) || row.length < 4 || !Number.isInteger(row[0]) || row[0] < 0 || row[0] >= SHARED_OBJECT_TYPES.length) return null;
@@ -153,6 +153,17 @@ function readSharedStageFromUrl(): StageEditorData | null {
       if (![x, y, z].every(Number.isFinite) || Math.abs(x) > 300 || y < -30 || y > 250 || z < 0 || z > 5200) return null;
       const type = SHARED_OBJECT_TYPES[typeIndex];
       const o: StageEditorObject = { id: `url-${objects.length + 1}`, type, x, y, z };
+      if (type === 'coinLine') {
+        o.length = Number.isFinite(row[4]) ? Math.max(1, Math.min(row[4], 300)) : 100;
+        o.pitch = Number.isFinite(row[5]) ? Math.max(-60, Math.min(row[5], 60)) : 0;
+        o.yaw = Number.isFinite(row[6]) ? Math.max(-80, Math.min(row[6], 80)) : 0;
+        o.spacing = Number.isFinite(row[7]) ? Math.max(3, Math.min(row[7], 30)) : 10;
+      }
+      if (type === 'goal') {
+        o.width = Number.isFinite(row[4]) ? Math.max(4, Math.min(row[4], 100)) : 24;
+        o.height = Number.isFinite(row[5]) ? Math.max(4, Math.min(row[5], 120)) : 18;
+        o.depth = Number.isFinite(row[6]) ? Math.max(4, Math.min(row[6], 60)) : 14;
+      }
       if (type === 'building') {
         // v1.6 test links carry XYZ plus width/height/depth. Y is the bottom elevation.
         o.width = Number.isFinite(row[4]) ? Math.max(2, Math.min(row[4], 200)) : 18;
@@ -1407,21 +1418,33 @@ async function start(): Promise<void> {
   goalMaterial.emissive = new pc.Color(0.28, 0.13, 0.01); goalMaterial.update();
   const homeMaterial = material(new pc.Color(0.92, 0.49, 0.28));
   const doorMaterial = material(new pc.Color(0.24, 0.19, 0.17));
-  type MilestoneGoal = { z: number; label: string; halfWidth: number; height: number; reward: number };
+  // milestoneZ determines progression, while z is the independently editable physical location.
+  type MilestoneGoal = { milestoneZ: number; x: number; y: number; z: number; label: string; width: number; height: number; depth: number; reward: number };
+  const editor1500 = EDITOR_STAGE_DATA?.objects.find((obj) => obj.type === 'goal');
   const milestoneGoals: MilestoneGoal[] = [
-    { z: 1500, label: 'APARTMENT', halfWidth: 12, height: 18, reward: 200 },
-    { z: 3000, label: 'MANSION', halfWidth: 14, height: 23, reward: 300 },
-    { z: 5000, label: 'TOWER MANSION', halfWidth: 18, height: 34, reward: 500 },
+    ...(!EDITOR_STAGE_DATA || editor1500 ? [{
+      milestoneZ: 1500, label: 'APARTMENT', reward: 200,
+      x: editor1500?.x ?? 0, y: editor1500?.y ?? 0, z: editor1500?.z ?? 1500,
+      width: editor1500?.width ?? 24, height: editor1500?.height ?? 18, depth: editor1500?.depth ?? 14,
+    }] : []),
+    { milestoneZ: 3000, x: 0, y: 0, z: 3000, label: 'MANSION', width: 28, height: 23, depth: 14, reward: 300 },
+    { milestoneZ: 5000, x: 0, y: 0, z: 5000, label: 'TOWER MANSION', width: 36, height: 34, depth: 14, reward: 500 },
   ];
   for (const goal of milestoneGoals) {
-    const bodyW = goal.halfWidth * 1.7;
-    box(`${goal.label}-Body`, new pc.Vec3(bodyW, goal.height, 12), new pc.Vec3(0, goal.height * 0.5, goal.z + 7), homeMaterial);
-    box(`${goal.label}-Roof`, new pc.Vec3(bodyW + 3, 2.2, 14), new pc.Vec3(0, goal.height + 1.1, goal.z + 7), goalMaterial);
-    box(`${goal.label}-Door`, new pc.Vec3(4.2, 7, 0.6), new pc.Vec3(0, 3.5, goal.z + 0.7), doorMaterial);
-    // Bright approach frame communicates the forgiving collision target without becoming an invisible wall.
-    box(`${goal.label}-GuideL`, new pc.Vec3(0.45, goal.height, 0.45), new pc.Vec3(-goal.halfWidth, goal.height/2, goal.z), goalMaterial);
-    box(`${goal.label}-GuideR`, new pc.Vec3(0.45, goal.height, 0.45), new pc.Vec3(goal.halfWidth, goal.height/2, goal.z), goalMaterial);
-    box(`${goal.label}-GuideTop`, new pc.Vec3(goal.halfWidth*2, 0.45, 0.45), new pc.Vec3(0, goal.height, goal.z), goalMaterial);
+    // x/z = body centre in X, front collision plane in Z; y = building bottom elevation.
+    const midZ = goal.z + goal.depth * 0.5;
+    box(`${goal.label}-Body`, new pc.Vec3(goal.width, goal.height, goal.depth - 2),
+      new pc.Vec3(goal.x, goal.y + goal.height * 0.5, midZ + 1), homeMaterial);
+    box(`${goal.label}-Roof`, new pc.Vec3(goal.width + 2, 2.2, goal.depth),
+      new pc.Vec3(goal.x, goal.y + goal.height + 1.1, midZ), goalMaterial);
+    box(`${goal.label}-Door`, new pc.Vec3(4.2, 7, 0.6),
+      new pc.Vec3(goal.x, goal.y + 3.5, goal.z + 0.7), doorMaterial);
+    box(`${goal.label}-GuideL`, new pc.Vec3(0.45, goal.height, 0.45),
+      new pc.Vec3(goal.x - goal.width * 0.5, goal.y + goal.height * 0.5, goal.z), goalMaterial);
+    box(`${goal.label}-GuideR`, new pc.Vec3(0.45, goal.height, 0.45),
+      new pc.Vec3(goal.x + goal.width * 0.5, goal.y + goal.height * 0.5, goal.z), goalMaterial);
+    box(`${goal.label}-GuideTop`, new pc.Vec3(goal.width, 0.45, 0.45),
+      new pc.Vec3(goal.x, goal.y + goal.height, goal.z), goalMaterial);
   }
 
   // Visible KEEP OUT gates sit just beyond the currently locked goal. They are enabled dynamically.
@@ -1447,9 +1470,9 @@ async function start(): Promise<void> {
   type KeepOutGate = { goalZ: number; root: pc.Entity };
   const keepOutGates: KeepOutGate[] = [];
   for (const goal of milestoneGoals) {
-    const gate = new pc.Entity(`KEEP-OUT-${goal.z}`);
-    gate.setPosition(0, 0, goal.z + 36);
-    const half = Math.min(corridorHalfWidthAt(goal.z + 36) - 3, 32);
+    const gate = new pc.Entity(`KEEP-OUT-${goal.milestoneZ}`);
+    gate.setPosition(goal.x, 0, goal.z + goal.depth + 22);
+    const half = Math.min(corridorHalfWidthAt(goal.z + goal.depth + 22) - 3, 32);
     box('PostL', new pc.Vec3(0.7, 8, 0.7), new pc.Vec3(-half, 4, 0), keepOutMaterial, gate);
     box('PostR', new pc.Vec3(0.7, 8, 0.7), new pc.Vec3(half, 4, 0), keepOutMaterial, gate);
     // Crossed zig-zag KEEP OUT tape: repeated X-shapes are easier to read at speed than one flat stripe.
@@ -1470,7 +1493,7 @@ async function start(): Promise<void> {
     // Large backboard makes the boundary readable even before the text can be resolved.
     box('KeepOutBoard', new pc.Vec3(16, 5.0, 0.45), new pc.Vec3(0, 10.5, 0), keepOutTextMaterial, gate);
     app.root.addChild(gate);
-    keepOutGates.push({ goalZ: goal.z, root: gate });
+    keepOutGates.push({ goalZ: goal.milestoneZ, root: gate });
   }
   function updateKeepOutGates(): void {
     for (const gate of keepOutGates) gate.root.enabled = gate.goalZ === gameSave.tokyoUnlockedDistance && gameSave.tokyoUnlockedDistance <= 5000;
@@ -1478,13 +1501,12 @@ async function start(): Promise<void> {
 
   function segmentIntersectsGoal(goal: MilestoneGoal, a: pc.Vec3, b: pc.Vec3): boolean {
     // Treat the whole house, including its roof, as the goal target. Expand by player radius for forgiving contact.
-    const bodyW = goal.halfWidth * 1.7;
-    const minX = -(bodyW * 0.5 + 1.5 + CONFIG.radius);
-    const maxX = -minX;
-    const minY = -CONFIG.radius;
-    const maxY = goal.height + 2.2 + CONFIG.radius;
+    const minX = goal.x - goal.width * 0.5 - 1.5 - CONFIG.radius;
+    const maxX = goal.x + goal.width * 0.5 + 1.5 + CONFIG.radius;
+    const minY = goal.y - CONFIG.radius;
+    const maxY = goal.y + goal.height + 2.2 + CONFIG.radius;
     const minZ = goal.z - CONFIG.radius;
-    const maxZ = goal.z + 14 + CONFIG.radius;
+    const maxZ = goal.z + goal.depth + CONFIG.radius;
     let t0 = 0, t1 = 1;
     const axes: Array<[number, number, number, number]> = [
       [a.x, b.x - a.x, minX, maxX], [a.y, b.y - a.y, minY, maxY], [a.z, b.z - a.z, minZ, maxZ],
@@ -1677,12 +1699,43 @@ async function start(): Promise<void> {
     coins.push({ id: nextCoinId++, position: new pc.Vec3(x, y, z), entity, collected: false, value, spinDegrees: 0, pickupEffectTime: -1 });
   }
 
+  // v1.7: editor-authored coin lines and standalone coins replace ALL legacy 0-1500 coin trails.
+  // Each line is a single stage object, expanded into collectible instances at runtime.
+  // Geometry: length is true 3D distance; +pitch climbs, +yaw moves toward world +X.
+  if (EDITOR_STAGE_DATA) {
+    const deg = Math.PI / 180;
+    let authoredCoins = 0;
+    const MAX_COINS = 3500;
+    for (const o of EDITOR_STAGE_DATA.objects) {
+      if (o.type === 'coin' && authoredCoins < MAX_COINS) {
+        addCoin(o.x, o.y, o.z);
+        authoredCoins++;
+      } else if (o.type === 'coinLine') {
+        const length = Math.max(1, Math.min(o.length ?? 100, 300));
+        const pitch = Math.max(-60, Math.min(o.pitch ?? 0, 60)) * deg;
+        const yaw = Math.max(-80, Math.min(o.yaw ?? 0, 80)) * deg;
+        const spacing = Math.max(3, Math.min(o.spacing ?? 10, 30));
+        const total = Math.min(101, Math.floor(length / spacing) + 1);
+        for (let i = 0; i < total && authoredCoins < MAX_COINS; i++) {
+          const d = i * spacing;
+          const horizontal = d * Math.cos(pitch);
+          const x = o.x + horizontal * Math.sin(yaw);
+          const y = o.y + d * Math.sin(pitch);
+          const z = o.z + horizontal * Math.cos(yaw);
+          if (z >= 0 && z <= 1500 && y >= 0) {
+            addCoin(x, y, z);
+            authoredCoins++;
+          }
+        }
+      }
+    }
+  }
   const routePoints = [
     { x: 0, y: 6.5, z: 35 },
     ...rings.map((ring) => ({ x: ring.x, y: ring.y, z: ring.z })),
     { x: 0, y: 8, z: CONFIG.goalZ },
   ];
-  for (let i = 0; i < routePoints.length - 1; i++) {
+  if (!EDITOR_STAGE_DATA) for (let i = 0; i < routePoints.length - 1; i++) {
     const a = routePoints[i];
     const b = routePoints[i + 1];
     const count = i == 0 ? 7 : 6;
@@ -1695,7 +1748,7 @@ async function start(): Promise<void> {
     }
   }
   // Reachable bonus arcs: slightly off the main line, never outside the existing corridor.
-  const bonusOffsets = ACTIVE_ROAD_POINTS ? [] : [
+  const bonusOffsets = EDITOR_STAGE_DATA ? [] : [
     { ring: 1, side: 1, dx: 7, dy: 2.0 },
     { ring: 2, side: -1, dx: 8, dy: -1.5 },
     { ring: 3, side: 1, dx: 7, dy: 2.5 },
@@ -1733,7 +1786,7 @@ async function start(): Promise<void> {
   }
 
   // Old 0-1500 prototype trails were independent of the editor. Suppress them in test mode.
-  if (!ACTIVE_ROAD_POINTS) {
+  if (!EDITOR_STAGE_DATA) {
   // Rooftop route: climb over low buildings on the right.
   addCoinTrail([
     { x: 10, y: 11, z: 820 },
@@ -1758,6 +1811,7 @@ async function start(): Promise<void> {
   ], 6);
 
   }
+
 
   function routePositionAtZ(z: number): pc.Vec3 {
     if (z <= routePoints[0].z) return new pc.Vec3(routePoints[0].x, routePoints[0].y, z);
@@ -3377,8 +3431,8 @@ async function start(): Promise<void> {
     milestoneBanner.classList.add('show', kind);
     milestoneBannerTitle.textContent = kind === 'complete' ? 'MISSION COMPLETE' : 'OVER SHOOT';
     milestoneBannerSubtitle.textContent = kind === 'complete'
-      ? `${goal.z}m ${goal.label}${unlockedNext ? ' / NEXT AREA UNLOCKED' : ' / GOAL HIT'}`
-      : `${goal.z}m ${goal.label} に直接ぶつかれ！`;
+      ? `${goal.milestoneZ}m ${goal.label}${unlockedNext ? ' / NEXT AREA UNLOCKED' : ' / GOAL HIT'}`
+      : `${goal.milestoneZ}m ${goal.label} に直接ぶつかれ！`;
     milestoneBanner.setAttribute('aria-hidden', 'false');
   }
 
@@ -3481,18 +3535,18 @@ async function start(): Promise<void> {
 
     let hitGoal: MilestoneGoal | null = null;
     for (const goal of milestoneGoals) {
-      if (goal.z > gameSave.tokyoUnlockedDistance) continue;
+      if (goal.milestoneZ > gameSave.tokyoUnlockedDistance) continue;
       if (segmentIntersectsGoal(goal, previousPosition, p)) { hitGoal = goal; break; }
     }
     previousPosition.copy(p);
 
     if (hitGoal) {
-      const wasCurrentLockedGoal = hitGoal.z === gameSave.tokyoUnlockedDistance;
+      const wasCurrentLockedGoal = hitGoal.milestoneZ === gameSave.tokyoUnlockedDistance;
       const wasStage2Unlocked = gameSave.stage2Unlocked;
-      if (hitGoal.z === 1500 && gameSave.tokyoUnlockedDistance < 3000) gameSave.tokyoUnlockedDistance = 3000;
-      if (hitGoal.z === 3000 && gameSave.tokyoUnlockedDistance < 5000) gameSave.tokyoUnlockedDistance = 5000;
+      if (hitGoal.milestoneZ === 1500 && gameSave.tokyoUnlockedDistance < 3000) gameSave.tokyoUnlockedDistance = 3000;
+      if (hitGoal.milestoneZ === 3000 && gameSave.tokyoUnlockedDistance < 5000) gameSave.tokyoUnlockedDistance = 5000;
       let milestoneReward: EquipmentItem | null = null;
-      if (hitGoal.z === 5000) {
+      if (hitGoal.milestoneZ === 5000) {
         gameSave.tokyoUnlockedDistance = 10000;
         gameSave.stage2Unlocked = true;
         milestoneReward = grantFirstClearEquipment(5000);
@@ -3504,9 +3558,9 @@ async function start(): Promise<void> {
       targetStatusText.textContent = `${hitGoal.label} 到着！`;
       const rewardText = milestoneReward ? ` 初回報酬：${itemDisplayName(milestoneReward)}獲得！` : '';
       const unlockText = wasCurrentLockedGoal ? ' 次の区間を解放。' : '';
-      const completeResult = () => finish('帰宅成功！', `${hitGoal.z}m ${hitGoal.label} に到着。${unlockText}${rewardText}`, true, hitGoal.reward);
+      const completeResult = () => finish('帰宅成功！', `${hitGoal.milestoneZ}m ${hitGoal.label} に到着。${unlockText}${rewardText}`, true, hitGoal.reward);
 
-      if (hitGoal.z === 5000 && !wasStage2Unlocked) {
+      if (hitGoal.milestoneZ === 5000 && !wasStage2Unlocked) {
         // Stage unlock is a major event: show it BEFORE the result screen, not after it.
         setPhase('finished');
         app.timeScale = 0;
@@ -3521,8 +3575,8 @@ async function start(): Promise<void> {
         showMilestoneBanner('complete', hitGoal, wasCurrentLockedGoal);
         completeResult();
       }
-    } else if (p.z > gameSave.tokyoUnlockedDistance + 45 && gameSave.tokyoUnlockedDistance <= 5000) {
-      const missedGoal = milestoneGoals.find((goal) => goal.z === gameSave.tokyoUnlockedDistance);
+    } else if (p.z > (milestoneGoals.find((goal) => goal.milestoneZ === gameSave.tokyoUnlockedDistance)?.z ?? gameSave.tokyoUnlockedDistance) + 45 && gameSave.tokyoUnlockedDistance <= 5000) {
+      const missedGoal = milestoneGoals.find((goal) => goal.milestoneZ === gameSave.tokyoUnlockedDistance);
       if (missedGoal) showMilestoneBanner('overshoot', missedGoal);
       finish('OVER SHOOT', `${gameSave.tokyoUnlockedDistance}mの家に直接ぶつかると次の区間が解放されます。`);
     } else if (stillTime >= CONFIG.stopDuration) {
