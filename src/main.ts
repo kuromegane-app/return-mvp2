@@ -81,7 +81,7 @@ const CONFIG = {
   safetySeconds: 240,
 };
 
-type StageEditorObject = { id: string; type: string; x: number; y: number; z: number; liftY?: number; maxY?: number; radius?: number; pushY?: number; speed?: number; phase?: number };
+type StageEditorObject = { id: string; type: string; x: number; y: number; z: number; liftY?: number; maxY?: number; radius?: number; pushY?: number; speed?: number; phase?: number; spawnMode?: 'legacy' | 'proximity'; triggerAhead?: number; repeatSeconds?: number };
 type StageEditorData = { version: number; stage: string; objects: StageEditorObject[] };
 const STAGE_EDITOR_KEY = 'jet-leeman-tokyo-stage-editor-v1';
 function readStageEditorData(): StageEditorData | null {
@@ -96,7 +96,45 @@ function readStageEditorData(): StageEditorData | null {
     return valid ? parsed as StageEditorData : null;
   } catch { return null; }
 }
-const EDITOR_STAGE_DATA = readStageEditorData();
+// STAGE EDITOR v1.3: the shared test URL contains an immutable snapshot of the editor.
+// It deliberately does not touch the device's localStorage stage data.
+const SHARED_OBJECT_TYPES = ['ring', 'fountain', 'coin', 'sign', 'car', 'train', 'monorail', 'plane', 'building', 'goal'] as const;
+function readSharedStageFromUrl(): StageEditorData | null {
+  try {
+    const token = new URLSearchParams(location.search).get('stageTest');
+    if (!token || token.length > 16000 || !/^[A-Za-z0-9_-]+$/.test(token)) return null;
+    const raw = atob(token.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - token.length % 4) % 4));
+    const data: unknown = JSON.parse(raw);
+    if (!Array.isArray(data) || data[0] !== 1 || !Array.isArray(data[1]) || data[1].length > 600) return null;
+    const objects: StageEditorObject[] = [];
+    for (const row of data[1]) {
+      if (!Array.isArray(row) || row.length < 4 || !Number.isInteger(row[0]) || row[0] < 0 || row[0] >= SHARED_OBJECT_TYPES.length) return null;
+      const [typeIndex, x, y, z] = row;
+      if (![x, y, z].every(Number.isFinite) || Math.abs(x) > 300 || y < -30 || y > 250 || z < 0 || z > 5200) return null;
+      const type = SHARED_OBJECT_TYPES[typeIndex];
+      const o: StageEditorObject = { id: `url-${objects.length + 1}`, type, x, y, z };
+      if (type === 'ring') o.liftY = Number.isFinite(row[4]) ? row[4] : 1;
+      if (type === 'fountain') {
+        o.maxY = Number.isFinite(row[4]) ? row[4] : 50;
+        o.radius = Number.isFinite(row[5]) ? row[5] : 11.5;
+        o.pushY = Number.isFinite(row[6]) ? row[6] : 24;
+      }
+      if (type === 'car' || type === 'train' || type === 'plane' || type === 'monorail') {
+        o.speed = Number.isFinite(row[4]) ? Math.max(0.01, Math.min(row[4], 5)) : 0.22;
+        o.phase = Number.isFinite(row[5]) ? row[5] : 0;
+        o.spawnMode = row[6] === 1 ? 'proximity' : 'legacy';
+        o.triggerAhead = Number.isFinite(row[7]) ? Math.max(0, Math.min(row[7], 1500)) : 180;
+        o.repeatSeconds = Number.isFinite(row[8]) ? Math.max(1, Math.min(row[8], 120)) : 7;
+      }
+      objects.push(o);
+    }
+    return { version: 1, stage: 'TOKYO_0000-1500', objects };
+  } catch { return null; }
+}
+const SHARED_STAGE_DATA = readSharedStageFromUrl();
+const EDITOR_STAGE_DATA = SHARED_STAGE_DATA ?? readStageEditorData();
+const IS_SHARED_STAGE_TEST = SHARED_STAGE_DATA !== null;
+const SHARED_URL_INVALID = new URLSearchParams(location.search).has('stageTest') && !SHARED_STAGE_DATA;
 
 const RING_LAYOUT = [
   // Ring 1 is still the calibration target for a PERFECT straight launch.
@@ -245,6 +283,11 @@ type MovingObstacle = {
   travel: number;
   speed: number;
   phase: number;
+  spawnMode: 'legacy' | 'proximity';
+  triggerAhead: number;
+  repeatSeconds: number;
+  activatedAt: number | null;
+  lastCycle: number;
   windows: MovingWindow[];
   collisionCooldown: number;
 };
@@ -411,6 +454,8 @@ function loadSave(): GameSave {
   }
 }
 function saveGame(save: GameSave): void {
+  // Shared smartphone tests must not overwrite ordinary progression or equipment saves.
+  if (IS_SHARED_STAGE_TEST) return;
   localStorage.setItem(SAVE_KEY, JSON.stringify(save));
 }
 function equipmentId(): string {
@@ -508,6 +553,7 @@ document.title = 'サボりリーマンの帰宅｜ビル街ルートテスト';
 root.dataset.phase = 'loading';
 root.innerHTML = `
   <canvas id="game-canvas" tabindex="0" aria-label="引っ張って発射する3Dテスト"></canvas>
+  ${IS_SHARED_STAGE_TEST ? `<div style="position:fixed;z-index:40;top:6px;left:50%;transform:translateX(-50%);padding:5px 11px;border-radius:12px;background:#113d52;color:white;font:bold 11px sans-serif;pointer-events:none;white-space:nowrap">スマホ共有テスト / ${SHARED_STAGE_DATA!.objects.length}個の配置を適用中</div>` : SHARED_URL_INVALID ? '<div style="position:fixed;z-index:60;top:6px;left:50%;transform:translateX(-50%);padding:8px 12px;border-radius:12px;background:#a32020;color:white;font:bold 13px sans-serif">テストURLが無効です。エディターから再発行してください。</div>' : ''}
   <section class="top-panel game-ui">
     <p class="eyebrow">STEP 29 / 5000m STAGE PROTOTYPE</p>
     <h1>サボりリーマンの帰宅</h1>
@@ -1790,7 +1836,7 @@ async function start(): Promise<void> {
   windowMaterialMoving.update();
   const movingObstacles: MovingObstacle[] = [];
 
-  function createMovingObstacle(kind: 'car' | 'train' | 'plane' | 'monorail', z: number, y: number, phaseValue: number, speed: number, baseX = 0): void {
+  function createMovingObstacle(kind: 'car' | 'train' | 'plane' | 'monorail', z: number, y: number, phaseValue: number, speed: number, baseX = 0, spawnMode: 'legacy' | 'proximity' = 'legacy', triggerAhead = 180, repeatSeconds = 7): void {
     const rootMoving = new pc.Entity(`${kind}-${movingObstacles.length + 1}`);
     app.root.addChild(rootMoving);
     const windows: MovingWindow[] = [];
@@ -1835,7 +1881,7 @@ async function start(): Promise<void> {
       travel = corridorHalfWidthAt(z) + 48;
     }
     const obstacle: MovingObstacle = {
-      id: movingObstacles.length + 1, kind, root: rootMoving, z, y, baseX, halfWidth, halfHeight, travel, speed, phase: phaseValue, windows, collisionCooldown: 0,
+      id: movingObstacles.length + 1, kind, root: rootMoving, z, y, baseX, halfWidth, halfHeight, travel, speed, phase: phaseValue, spawnMode, triggerAhead, repeatSeconds, activatedAt: null, lastCycle: -1, windows, collisionCooldown: 0,
     };
     movingObstacles.push(obstacle);
     // Place it at its actual route position immediately. Without this, timeScale=0 leaves new vehicles at world origin and hides the launch arrow.
@@ -1847,11 +1893,12 @@ async function start(): Promise<void> {
     } else {
       rootMoving.setPosition(baseX - travel + initialPingPong * travel * 2, y, z);
     }
+    if (spawnMode === 'proximity') rootMoving.enabled = false;
   }
 
   // Editor and game now share the same moving-object placement for 0-1500m.
   // During flight, X is the *center* of the moving object's traverse, not its instant position.
-  type MovingSpec = { kind: 'car' | 'train' | 'plane' | 'monorail'; x: number; z: number; y: number; phase: number; speed: number };
+  type MovingSpec = { kind: 'car' | 'train' | 'plane' | 'monorail'; x: number; z: number; y: number; phase: number; speed: number; spawnMode?: 'legacy' | 'proximity'; triggerAhead?: number; repeatSeconds?: number };
   const defaultMovingSpecs: MovingSpec[] = [
     { kind: 'plane', x: 0, z: 1015, y: 18.0, phase: 0.10, speed: 0.20 },
     { kind: 'car', x: 0, z: 1100, y: 2.9, phase: 0.55, speed: 0.38 },
@@ -1868,7 +1915,11 @@ async function start(): Promise<void> {
         .map((o) => ({
           kind: o.type as MovingSpec['kind'], x: o.x, z: o.z, y: o.y,
           phase: Number.isFinite(o.phase) ? o.phase! : 0,
-          speed: Number.isFinite(o.speed) ? Math.max(0, o.speed!) : 0.22,
+          speed: Number.isFinite(o.speed) ? Math.max(0.01, o.speed!) : 0.22,
+          spawnMode: o.spawnMode === 'proximity' || o.spawnMode === 'legacy'
+            ? o.spawnMode : (o.type === 'plane' || o.type === 'monorail' ? 'proximity' : 'legacy'),
+          triggerAhead: Number.isFinite(o.triggerAhead) ? Math.max(0, o.triggerAhead!) : 180,
+          repeatSeconds: Number.isFinite(o.repeatSeconds) ? Math.max(1, o.repeatSeconds!) : 7,
         }))
     : defaultMovingSpecs;
 
@@ -1879,7 +1930,7 @@ async function start(): Promise<void> {
       new pc.Vec3(spec.x, spec.y - 3.2, spec.z), signPostMaterial);
   }
   for (const spec of activeMovingSpecs) {
-    createMovingObstacle(spec.kind, spec.z, spec.y, spec.phase, spec.speed, spec.x);
+    createMovingObstacle(spec.kind, spec.z, spec.y, spec.phase, spec.speed, spec.x, spec.spawnMode, spec.triggerAhead, spec.repeatSeconds);
   }
 
   const origin = new pc.Vec3(0, groundSurfaceYAt(0) + CONFIG.radius + CONFIG.launchClearance, 0);
@@ -2170,7 +2221,9 @@ async function start(): Promise<void> {
     updateKeepOutGates();
     for (const obstacle of movingObstacles) {
       obstacle.collisionCooldown = 0;
-      obstacle.root.enabled = true;
+      obstacle.activatedAt = null;
+      obstacle.lastCycle = -1;
+      obstacle.root.enabled = obstacle.spawnMode === 'legacy';
       const raw = ((obstacle.phase % 2) + 2) % 2;
       const ping = raw <= 1 ? raw : 2 - raw;
       if (obstacle.kind === 'plane') {
@@ -2513,15 +2566,55 @@ async function start(): Promise<void> {
 
     for (const obstacle of movingObstacles) {
       obstacle.collisionCooldown = Math.max(0, obstacle.collisionCooldown - dt);
+      let crossingT: number | null = null;
+      if (obstacle.spawnMode === 'proximity') {
+        // Start relative to the actual player position, not time elapsed since launch.
+        if (obstacle.activatedAt === null) {
+          if (player.z < obstacle.z - obstacle.triggerAhead) {
+            obstacle.root.enabled = false;
+            continue;
+          }
+          obstacle.activatedAt = elapsed;
+        }
+        const traverseSeconds = 1 / Math.max(0.01, obstacle.speed);
+        const period = Math.max(obstacle.repeatSeconds, traverseSeconds + 0.3);
+        const sinceActivation = Math.max(0, elapsed - obstacle.activatedAt);
+        const cycle = Math.floor(sinceActivation / period);
+        const cycleSeconds = sinceActivation - cycle * period;
+        if (cycleSeconds >= traverseSeconds) {
+          obstacle.root.enabled = false;
+          continue;
+        }
+        crossingT = Math.min(1, cycleSeconds / traverseSeconds);
+        obstacle.root.enabled = true;
+        if (cycle !== obstacle.lastCycle) {
+          obstacle.lastCycle = cycle;
+          for (const pane of obstacle.windows) {
+            pane.broken = false;
+            pane.effectTime = -1;
+            pane.entity.enabled = true;
+            pane.entity.setLocalPosition(pane.local);
+            pane.entity.setLocalEulerAngles(0, 0, 0);
+            const isRail = obstacle.kind === 'train' || obstacle.kind === 'monorail';
+            pane.entity.setLocalScale(
+              isRail ? (obstacle.kind === 'monorail' ? 2.6 : 2.5) : obstacle.kind === 'plane' ? 1.8 : 2.5,
+              isRail ? (obstacle.kind === 'monorail' ? 1.85 : 1.75) : obstacle.kind === 'plane' ? 1.3 : 1.25,
+              obstacle.kind === 'plane' ? 0.16 : 0.18,
+            );
+            pane.velocity.set(0, 0, 0);
+            pane.spin.set(0, 0, 0);
+          }
+        }
+      }
       const rawCycle = ((elapsed * obstacle.speed + obstacle.phase) % 2 + 2) % 2;
-      const pingPong = rawCycle <= 1 ? rawCycle : 2 - rawCycle;
+      const pingPong = crossingT ?? (rawCycle <= 1 ? rawCycle : 2 - rawCycle);
       let x = obstacle.baseX - obstacle.travel + pingPong * obstacle.travel * 2;
       let obstacleY = obstacle.y;
       let obstacleZ = obstacle.z;
       if (obstacle.kind === 'plane') {
         // True takeoff path: the aircraft changes X, Y and Z together instead of merely being tilted.
         // It enters low on the left and physically climbs toward the upper-right while moving forward.
-        const takeoffT = ((elapsed * obstacle.speed + obstacle.phase) % 1 + 1) % 1;
+        const takeoffT = crossingT ?? ((elapsed * obstacle.speed + obstacle.phase) % 1 + 1) % 1;
         x = obstacle.baseX - obstacle.travel + takeoffT * obstacle.travel * 2;
         obstacleY = obstacle.y + takeoffT * 38.0;
         obstacleZ = obstacle.z + takeoffT * 22.0;
@@ -2972,6 +3065,7 @@ async function start(): Promise<void> {
   stageTokyoPlay.addEventListener('click', playTokyo, eventOptions);
   homeShop.addEventListener('click', showShop, eventOptions);
   testDataReset.addEventListener('click', () => {
+    if (IS_SHARED_STAGE_TEST) { window.alert('共有テスト中はセーブデータを初期化できません。'); return; }
     const ok = window.confirm('テストデータをすべて初期化します。\n\n所持コイン・装備・アンロック状況・ガチャ回数などが消えます。実行しますか？');
     if (!ok) return;
     localStorage.removeItem(SAVE_KEY);
