@@ -1,0 +1,584 @@
+{
+  "version": 1,
+  "schemaVersion": 8,
+  "stage": "TOKYO_0000-1500",
+  "objects": [
+    {
+      "id": "draft-ring-01",
+      "type": "ring",
+      "x": 0,
+      "y": 14,
+      "z": 100,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-02",
+      "type": "ring",
+      "x": 14,
+      "y": 24,
+      "z": 180,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-03",
+      "type": "ring",
+      "x": -12,
+      "y": 18,
+      "z": 245,
+      "liftY": 2
+    },
+    {
+      "id": "draft-sign-01",
+      "type": "sign",
+      "x": -16,
+      "y": 20,
+      "z": 285,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-ring-04",
+      "type": "ring",
+      "x": 8,
+      "y": 20,
+      "z": 290,
+      "liftY": 2
+    },
+    {
+      "id": "draft-sign-02",
+      "type": "sign",
+      "x": 12,
+      "y": 22,
+      "z": 340,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-ring-05",
+      "type": "ring",
+      "x": -24,
+      "y": 30,
+      "z": 355,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-06",
+      "type": "ring",
+      "x": 30,
+      "y": 20,
+      "z": 400,
+      "liftY": 2
+    },
+    {
+      "id": "draft-sign-03",
+      "type": "sign",
+      "x": -34,
+      "y": 30,
+      "z": 400,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-ring-07",
+      "type": "ring",
+      "x": -10,
+      "y": 20,
+      "z": 425,
+      "liftY": 2
+    },
+    {
+      "id": "draft-sign-04",
+      "type": "sign",
+      "x": 48,
+      "y": 28,
+      "z": 445,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-sign-05",
+      "type": "sign",
+      "x": -46,
+      "y": 20,
+      "z": 450,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-ring-08",
+      "type": "ring",
+      "x": 38,
+      "y": 32,
+      "z": 470,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-09",
+      "type": "ring",
+      "x": -40,
+      "y": 22,
+      "z": 490,
+      "liftY": 2
+    },
+    {
+      "id": "draft-sign-06",
+      "type": "sign",
+      "x": -46,
+      "y": 24,
+      "z": 525,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-sign-07",
+      "type": "sign",
+      "x": 48,
+      "y": 28,
+      "z": 545,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-ring-10",
+      "type": "ring",
+      "x": 0,
+      "y": 34,
+      "z": 555,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-11",
+      "type": "ring",
+      "x": -36,
+      "y": 20,
+      "z": 605,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-12",
+      "type": "ring",
+      "x": 38,
+      "y": 14,
+      "z": 625,
+      "liftY": 2
+    },
+    {
+      "id": "draft-sign-08",
+      "type": "sign",
+      "x": -42,
+      "y": 24,
+      "z": 650,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-ring-13",
+      "type": "ring",
+      "x": 30,
+      "y": 26,
+      "z": 670,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-14",
+      "type": "ring",
+      "x": -24,
+      "y": 16,
+      "z": 680,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-15",
+      "type": "ring",
+      "x": 0,
+      "y": 16,
+      "z": 700,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-16",
+      "type": "ring",
+      "x": -50,
+      "y": 20,
+      "z": 735,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-17",
+      "type": "ring",
+      "x": 64,
+      "y": 16,
+      "z": 750,
+      "liftY": 2
+    },
+    {
+      "id": "draft-fountain-01",
+      "type": "fountain",
+      "x": 0,
+      "y": 0,
+      "z": 770,
+      "maxY": 50,
+      "radius": 18,
+      "pushY": 24
+    },
+    {
+      "id": "draft-sign-09",
+      "type": "sign",
+      "x": -62,
+      "y": 20,
+      "z": 780,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-sign-10",
+      "type": "sign",
+      "x": 76,
+      "y": 20,
+      "z": 800,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-ring-18",
+      "type": "ring",
+      "x": -74,
+      "y": 16,
+      "z": 825,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-19",
+      "type": "ring",
+      "x": 0,
+      "y": 64,
+      "z": 825,
+      "liftY": 4
+    },
+    {
+      "id": "draft-ring-20",
+      "type": "ring",
+      "x": 76,
+      "y": 16,
+      "z": 835,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-21",
+      "type": "ring",
+      "x": 24,
+      "y": 16,
+      "z": 845,
+      "liftY": 2
+    },
+    {
+      "id": "draft-sign-11",
+      "type": "sign",
+      "x": -42,
+      "y": 22,
+      "z": 860,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-ring-22",
+      "type": "ring",
+      "x": 0,
+      "y": 74,
+      "z": 875,
+      "liftY": 4
+    },
+    {
+      "id": "draft-sign-12",
+      "type": "sign",
+      "x": 68,
+      "y": 16,
+      "z": 875,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-sign-13",
+      "type": "sign",
+      "x": -72,
+      "y": 16,
+      "z": 880,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-ring-23",
+      "type": "ring",
+      "x": -66,
+      "y": 20,
+      "z": 920,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-24",
+      "type": "ring",
+      "x": 0,
+      "y": 84,
+      "z": 920,
+      "liftY": 4
+    },
+    {
+      "id": "draft-ring-25",
+      "type": "ring",
+      "x": 66,
+      "y": 20,
+      "z": 930,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-26",
+      "type": "ring",
+      "x": 14,
+      "y": 16,
+      "z": 960,
+      "liftY": 2
+    },
+    {
+      "id": "draft-sign-14",
+      "type": "sign",
+      "x": 60,
+      "y": 14,
+      "z": 980,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-sign-15",
+      "type": "sign",
+      "x": -54,
+      "y": 16,
+      "z": 985,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-ring-27",
+      "type": "ring",
+      "x": 0,
+      "y": 12,
+      "z": 990,
+      "liftY": 2
+    },
+    {
+      "id": "draft-plane-01",
+      "type": "plane",
+      "x": 0,
+      "y": 95,
+      "z": 1000,
+      "speed": 0.2,
+      "phase": 0.1,
+      "spawnMode": "proximity",
+      "triggerAhead": 180,
+      "repeatSeconds": 7
+    },
+    {
+      "id": "draft-ring-28",
+      "type": "ring",
+      "x": -44,
+      "y": 12,
+      "z": 1020,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-29",
+      "type": "ring",
+      "x": 54,
+      "y": 12,
+      "z": 1020,
+      "liftY": 2
+    },
+    {
+      "id": "draft-train-01",
+      "type": "train",
+      "x": -20,
+      "y": 8,
+      "z": 1050,
+      "speed": 0.22,
+      "phase": 0.25,
+      "spawnMode": "proximity",
+      "triggerAhead": 180,
+      "repeatSeconds": 7
+    },
+    {
+      "id": "draft-ring-30",
+      "type": "ring",
+      "x": 0,
+      "y": 34,
+      "z": 1085,
+      "liftY": 2
+    },
+    {
+      "id": "draft-train-02",
+      "type": "train",
+      "x": 20,
+      "y": 8,
+      "z": 1100,
+      "speed": 0.22,
+      "phase": 0.5,
+      "spawnMode": "proximity",
+      "triggerAhead": 180,
+      "repeatSeconds": 7
+    },
+    {
+      "id": "draft-ring-31",
+      "type": "ring",
+      "x": 44,
+      "y": 28,
+      "z": 1110,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-32",
+      "type": "ring",
+      "x": -34,
+      "y": 28,
+      "z": 1125,
+      "liftY": 2
+    },
+    {
+      "id": "draft-sign-16",
+      "type": "sign",
+      "x": 48,
+      "y": 24,
+      "z": 1155,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-sign-17",
+      "type": "sign",
+      "x": -30,
+      "y": 24,
+      "z": 1175,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "draft-ring-33",
+      "type": "ring",
+      "x": 0,
+      "y": 12,
+      "z": 1185,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-34",
+      "type": "ring",
+      "x": 0,
+      "y": 40,
+      "z": 1200,
+      "liftY": 2
+    },
+    {
+      "id": "draft-monorail-01",
+      "type": "monorail",
+      "x": -30,
+      "y": 45,
+      "z": 1250,
+      "speed": 0.22,
+      "phase": 0.25,
+      "spawnMode": "proximity",
+      "triggerAhead": 180,
+      "repeatSeconds": 7
+    },
+    {
+      "id": "draft-ring-35",
+      "type": "ring",
+      "x": 24,
+      "y": 14,
+      "z": 1315,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-36",
+      "type": "ring",
+      "x": -22,
+      "y": 14,
+      "z": 1340,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-37",
+      "type": "ring",
+      "x": -2,
+      "y": 32,
+      "z": 1400,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-38",
+      "type": "ring",
+      "x": 38,
+      "y": 20,
+      "z": 1430,
+      "liftY": 2
+    },
+    {
+      "id": "draft-ring-39",
+      "type": "ring",
+      "x": -38,
+      "y": 20,
+      "z": 1450,
+      "liftY": 2
+    },
+    {
+      "id": "draft-goal-01",
+      "type": "goal",
+      "x": 0,
+      "y": 0,
+      "z": 1500,
+      "width": 24,
+      "height": 18,
+      "depth": 14
+    }
+  ],
+  "road": {
+    "points": [
+      {
+        "z": 0,
+        "left": 38,
+        "right": 38
+      },
+      {
+        "z": 300,
+        "left": 38,
+        "right": 38
+      },
+      {
+        "z": 301,
+        "left": 65,
+        "right": 65
+      },
+      {
+        "z": 660,
+        "left": 65,
+        "right": 65
+      },
+      {
+        "z": 710,
+        "left": 84,
+        "right": 84
+      },
+      {
+        "z": 770,
+        "left": 102,
+        "right": 102
+      },
+      {
+        "z": 1010,
+        "left": 102,
+        "right": 102
+      },
+      {
+        "z": 1060,
+        "left": 96,
+        "right": 96
+      },
+      {
+        "z": 1120,
+        "left": 78,
+        "right": 78
+      },
+      {
+        "z": 1150,
+        "left": 65,
+        "right": 65
+      },
+      {
+        "z": 1500,
+        "left": 65,
+        "right": 65
+      }
+    ]
+  },
+  "tuning": {},
+  "published": false
+}

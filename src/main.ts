@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import './style.css';
 import * as pc from 'playcanvas';
+import TOKYO_STAGE_DEFAULT from './stages/tokyo_0000_1500.json';
 
 // STEP 30: progression UX + stage select + milestone clear/overshoot feedback.
 // STEP 29's 0-5000m Tokyo prototype remains the playable MVP stage.
@@ -79,6 +80,11 @@ const CONFIG = {
   movingBodyHitRadius: 4.6,
   movingBodyCooldown: 0.45,
   safetySeconds: 240,
+  dropRingPercent: 6,
+  dropSignPercent: 10,
+  dropWindowPercent: 20,
+  dropFountainPercent: 35,
+  dropTowerPercent: 35,
 };
 
 type StageEditorObject = { id: string; type: string; x: number; y: number; z: number; liftY?: number; maxY?: number; radius?: number; pushY?: number; speed?: number; phase?: number; spawnMode?: 'legacy' | 'proximity'; triggerAhead?: number; repeatSeconds?: number; signKind?: SignKind; width?: number; height?: number; depth?: number; length?: number; pitch?: number; yaw?: number; spacing?: number };
@@ -94,7 +100,34 @@ const TOKYO_PLAN_ROAD: RoadProfilePoint[] = [
   { z: 1120, left: 78, right: 78 }, { z: 1150, left: 65, right: 65 },
   { z: 1500, left: 65, right: 65 },
 ];
-type StageEditorData = { version: number; stage: string; objects: StageEditorObject[]; road?: { points: RoadProfilePoint[] } };
+// STEP 38-40: only these whitelisted physical/reward values can be tuned from stage data.
+type TuningKey = 'gravity' | 'ringRadius' | 'ringBoostZ' | 'ringFuelSeconds' | 'jetForwardBoost' | 'jetElevationDegrees' | 'jetMaximumSpeedZ' | 'jetFuelSeconds' | 'fueledForwardDeceleration' | 'coastForwardDeceleration' | 'coinValue' | 'distanceCoinValue' | 'ringCoinBonus' | 'breakableCoinBonus' | 'breakableHitRadius' | 'movingWindowCoinBonus' | 'movingWindowHitRadius' | 'goalCoinBonus' | 'dropRingPercent' | 'dropSignPercent' | 'dropWindowPercent' | 'dropFountainPercent' | 'dropTowerPercent';
+type StageTuning = Partial<Record<TuningKey, number>>;
+const TUNING_BOUNDS: Record<TuningKey, [number, number]> = {
+  gravity: [-9, -2], ringRadius: [5, 15], ringBoostZ: [0, 25], ringFuelSeconds: [0.5, 7],
+  jetForwardBoost: [0, 35], jetElevationDegrees: [0, 25],
+  fueledForwardDeceleration: [0.1, 6], coastForwardDeceleration: [1, 14],
+  coinValue: [1, 10], distanceCoinValue: [0, 20],
+  ringCoinBonus: [0, 50], breakableCoinBonus: [0, 30], breakableHitRadius: [2, 15],
+  movingWindowCoinBonus: [0, 40], movingWindowHitRadius: [2, 15], goalCoinBonus: [0, 1000],
+  jetMaximumSpeedZ: [60, 120], jetFuelSeconds: [0.5, 5],
+  dropRingPercent: [0, 50], dropSignPercent: [0, 50], dropWindowPercent: [0, 60],
+  dropFountainPercent: [0, 60], dropTowerPercent: [0, 60],
+};
+function sanitizeTuning(value: unknown): StageTuning {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const output: StageTuning = {};
+  const raw = value as Record<string, unknown>;
+  for (const key of Object.keys(TUNING_BOUNDS) as TuningKey[]) {
+    const candidate = raw[key];
+    const [min, max] = TUNING_BOUNDS[key];
+    if (typeof candidate === 'number' && Number.isFinite(candidate) && candidate >= min && candidate <= max) {
+      output[key] = candidate;
+    }
+  }
+  return output;
+}
+type StageEditorData = { published?: boolean; version: number; stage: string; objects: StageEditorObject[]; road?: { points: RoadProfilePoint[] }; tuning?: StageTuning };
 function validateRoadProfile(value: unknown): RoadProfilePoint[] | null {
   if (!Array.isArray(value) || value.length < 2 || value.length > 80) return null;
   const points: RoadProfilePoint[] = [];
@@ -136,6 +169,13 @@ function readStageEditorData(): StageEditorData | null {
     return parsed as StageEditorData;
   } catch { return null; }
 }
+function readOfficialStage(): StageEditorData | null {
+  const parsed = TOKYO_STAGE_DEFAULT as StageEditorData;
+  if (parsed.published !== true || parsed.version !== 1 || parsed.stage !== 'TOKYO_0000-1500' || !Array.isArray(parsed.objects) || parsed.objects.length > 600) return null;
+  if (!parsed.objects.every((o) => o && typeof o.id === 'string' && typeof o.type === 'string' && [o.x, o.y, o.z].every(Number.isFinite))) return null;
+  if (!validateRoadProfile(parsed.road?.points)) return null;
+  return parsed;
+}
 // STAGE EDITOR v1.3: the shared test URL contains an immutable snapshot of the editor.
 // It deliberately does not touch the device's localStorage stage data.
 const SHARED_OBJECT_TYPES = ['ring', 'fountain', 'coin', 'sign', 'car', 'train', 'monorail', 'plane', 'building', 'goal', 'coinLine'] as const;
@@ -145,7 +185,7 @@ function readSharedStageFromUrl(): StageEditorData | null {
     if (!token || token.length > 16000 || !/^[A-Za-z0-9_-]+$/.test(token)) return null;
     const raw = atob(token.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - token.length % 4) % 4));
     const data: unknown = JSON.parse(raw);
-    if (!Array.isArray(data) || ![1, 2, 3, 4, 5].includes(data[0]) || !Array.isArray(data[1]) || data[1].length > 600) return null;
+    if (!Array.isArray(data) || ![1, 2, 3, 4, 5, 6].includes(data[0]) || !Array.isArray(data[1]) || data[1].length > 600) return null;
     const objects: StageEditorObject[] = [];
     for (const row of data[1]) {
       if (!Array.isArray(row) || row.length < 4 || !Number.isInteger(row[0]) || row[0] < 0 || row[0] >= SHARED_OBJECT_TYPES.length) return null;
@@ -188,16 +228,28 @@ function readSharedStageFromUrl(): StageEditorData | null {
     }
     const points = data[0] >= 2 ? validateRoadProfile(data[2]?.map((row: unknown) => Array.isArray(row) ? { z: row[0], left: row[1], right: row[2] } : null)) : TOKYO_PLAN_ROAD;
     if (!points) return null;
-    return { version: 1, stage: 'TOKYO_0000-1500', objects, road: { points } };
+    return { version: 1, stage: 'TOKYO_0000-1500', objects, road: { points }, tuning: data[0] >= 6 ? sanitizeTuning(data[3]) : {} };
   } catch { return null; }
 }
 const SHARED_STAGE_DATA = readSharedStageFromUrl();
-const EDITOR_STAGE_DATA = SHARED_STAGE_DATA ?? readStageEditorData();
+const URL_PARAMS = new URLSearchParams(location.search);
+// Live stage is always the bundled GitHub JSON. Unpublished local edits never leak into normal play.
+const IS_LOCAL_STAGE_TEST = URL_PARAMS.get('stageLocal') === '1';
+const IS_TEST_PLAY = SHARED_STAGE_DATA !== null || IS_LOCAL_STAGE_TEST;
+const EDITOR_STAGE_DATA = SHARED_STAGE_DATA ?? (IS_LOCAL_STAGE_TEST ? readStageEditorData() : null) ?? readOfficialStage();
 const ACTIVE_ROAD_POINTS = EDITOR_STAGE_DATA
   ? validateRoadProfile(EDITOR_STAGE_DATA.road?.points) ?? TOKYO_PLAN_ROAD
   : null;
 const IS_SHARED_STAGE_TEST = SHARED_STAGE_DATA !== null;
-const SHARED_URL_INVALID = new URLSearchParams(location.search).has('stageTest') && !SHARED_STAGE_DATA;
+const SHARED_URL_INVALID = URL_PARAMS.has('stageTest') && !SHARED_STAGE_DATA;
+// Stage-wide physics values: editable in test links; applied to Tokyo while this stage is being tuned.
+// The same values also apply after 1500m within the existing single Tokio scene (documented limitation).
+const STAGE_TUNING = sanitizeTuning(EDITOR_STAGE_DATA?.tuning);
+for (const key of Object.keys(STAGE_TUNING) as TuningKey[]) {
+  const n = STAGE_TUNING[key];
+  if (n !== undefined) (CONFIG as unknown as Record<string, number>)[key] = n;
+}
+const SHOW_DEV_TOOLS = IS_TEST_PLAY || URL_PARAMS.get('debug') === '1';
 
 const RING_LAYOUT = [
   // Ring 1 is still the calibration target for a PERFECT straight launch.
@@ -519,7 +571,7 @@ function loadSave(): GameSave {
 }
 function saveGame(save: GameSave): void {
   // Shared smartphone tests must not overwrite ordinary progression or equipment saves.
-  if (IS_SHARED_STAGE_TEST) return;
+  if (IS_TEST_PLAY) return;
   localStorage.setItem(SAVE_KEY, JSON.stringify(save));
 }
 function equipmentId(): string {
@@ -617,7 +669,8 @@ document.title = 'サボりリーマンの帰宅｜ビル街ルートテスト';
 root.dataset.phase = 'loading';
 root.innerHTML = `
   <canvas id="game-canvas" tabindex="0" aria-label="引っ張って発射する3Dテスト"></canvas>
-  ${IS_SHARED_STAGE_TEST ? `<div style="position:fixed;z-index:40;top:6px;left:50%;transform:translateX(-50%);padding:5px 11px;border-radius:12px;background:#113d52;color:white;font:bold 11px sans-serif;pointer-events:none;white-space:nowrap">スマホ共有テスト / ${SHARED_STAGE_DATA!.objects.length}個の配置を適用中</div>` : SHARED_URL_INVALID ? '<div style="position:fixed;z-index:60;top:6px;left:50%;transform:translateX(-50%);padding:8px 12px;border-radius:12px;background:#a32020;color:white;font:bold 13px sans-serif">テストURLが無効です。エディターから再発行してください。</div>' : ''}
+  ${IS_SHARED_STAGE_TEST ? `<div style="position:fixed;z-index:40;top:6px;left:50%;transform:translateX(-50%);padding:5px 11px;border-radius:12px;background:#113d52;color:white;font:bold 11px sans-serif;pointer-events:none;white-space:nowrap">共有テスト / ${SHARED_STAGE_DATA!.objects.length}個の配置を適用中</div>` : SHARED_URL_INVALID ? '<div style="position:fixed;z-index:60;top:6px;left:50%;transform:translateX(-50%);padding:8px 12px;border-radius:12px;background:#a32020;color:white;font:bold 13px sans-serif">テストURLが無効です。エディターから再発行してください。</div>' : ''}
+  ${SHOW_DEV_TOOLS ? `<button id="route-debug-toggle" type="button" style="position:fixed;right:9px;top:52px;z-index:120;padding:7px 10px;border:0;border-radius:9px;background:#263b51;color:white;font:bold 12px sans-serif;cursor:pointer">診断 HUD</button><div id="route-debug" style="display:none;position:fixed;right:9px;top:90px;z-index:118;width:min(270px,calc(100vw - 20px));max-height:52vh;overflow:auto;background:rgba(13,26,38,.91);color:#d5eefb;border:1px solid #5d8aa1;border-radius:12px;padding:12px;font:12px/1.65 ui-monospace,monospace;pointer-events:auto"><b>FLIGHT DEBUG</b><pre id="route-debug-values" style="white-space:pre-wrap;margin:5px 0 10px">待機中</pre><button id="route-debug-export" type="button" style="width:100%;padding:9px;color:#0c2031;background:#8ce0ef;border:0;border-radius:6px;font-weight:bold">飛行ログJSONを保存</button><small style="display:block;margin-top:6px">ルートは実プレイの軌跡。エディターへ読み込めます。</small></div>` : ''}
   <section class="top-panel game-ui">
     <p class="eyebrow">STEP 29 / 5000m STAGE PROTOTYPE</p>
     <h1>サボりリーマンの帰宅</h1>
@@ -818,6 +871,7 @@ root.innerHTML = `
     <button id="reward-double-button" type="button" disabled>広告を見てコイン2倍（準備中）</button>
     <button id="result-retry-button" type="button">もう一度</button>
     <button id="result-home-button" class="result-home-button" type="button">ホームへ</button>
+    ${SHOW_DEV_TOOLS ? `<button id="result-route-export" class="result-home-button" type="button">📈 飛行ログJSONを保存</button>` : ''}
   </section>
 `;
 
@@ -1423,7 +1477,7 @@ async function start(): Promise<void> {
   const editor1500 = EDITOR_STAGE_DATA?.objects.find((obj) => obj.type === 'goal');
   const milestoneGoals: MilestoneGoal[] = [
     ...(!EDITOR_STAGE_DATA || editor1500 ? [{
-      milestoneZ: 1500, label: 'APARTMENT', reward: 200,
+      milestoneZ: 1500, label: 'APARTMENT', reward: CONFIG.goalCoinBonus,
       x: editor1500?.x ?? 0, y: editor1500?.y ?? 0, z: editor1500?.z ?? 1500,
       width: editor1500?.width ?? 24, height: editor1500?.height ?? 18, depth: editor1500?.depth ?? 14,
     }] : []),
@@ -2224,6 +2278,47 @@ async function start(): Promise<void> {
   const listeners = new AbortController();
   const eventOptions = { signal: listeners.signal };
 
+  // Real PlayCanvas/Ammo flight trace: used for STEP 39 path validation and STEP 40 comparisons.
+  type FlightEvent = { t: number; kind: string; x: number; y: number; z: number };
+  const routeSamples: number[][] = [];
+  const routeEvents: FlightEvent[] = [];
+  let routeSampleAccumulator = 0;
+  let routeResult = '未終了';
+  let routeDebugVisible = false;
+  const routeDebugButton = root!.querySelector<HTMLButtonElement>('#route-debug-toggle');
+  const routeDebugPanel = root!.querySelector<HTMLElement>('#route-debug');
+  const routeDebugValues = root!.querySelector<HTMLElement>('#route-debug-values');
+  function routeEvent(kind: string): void {
+    if (!SHOW_DEV_TOOLS) return;
+    const pos = ball.getPosition();
+    routeEvents.push({ t: Math.round(elapsed * 100) / 100, kind, x: +pos.x.toFixed(2), y: +pos.y.toFixed(2), z: +pos.z.toFixed(2) });
+  }
+  function exportRoute(): void {
+    if (!SHOW_DEV_TOOLS) return;
+    const payload = {
+      format: 'jet-leeman-route-v1',
+      stage: 'TOKYO_0000-1500',
+      source: IS_TEST_PLAY ? 'test' : 'debug',
+      tuning: STAGE_TUNING,
+      result: routeResult,
+      collected: { distance: Math.round(distance), rings: hitCount, signs: techniqueSigns, windows: techniqueWindows, fountains: techniqueFountains, tower: techniqueTower, coins: playCoins },
+      samples: routeSamples,
+      events: routeEvents,
+    };
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = href;
+    a.download = `JET_ROUTE_${Date.now()}.json`; document.body.appendChild(a); a.click(); a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(href), 2000);
+  }
+  root!.querySelector('#result-route-export')?.addEventListener('click', exportRoute);
+  if (routeDebugButton && routeDebugPanel) {
+    routeDebugButton.addEventListener('click', () => {
+      routeDebugVisible = !routeDebugVisible;
+      routeDebugPanel.style.display = routeDebugVisible ? 'block' : 'none';
+    });
+    root!.querySelector('#route-debug-export')?.addEventListener('click', exportRoute);
+  }
   const percent = (id: AbilityId) => 1 + equippedAbilityTotal(id) / 100;
   const effectiveLaunchFuel = () => CONFIG.launchFuelSeconds * percent('fuelCapacity');
   const effectiveRingFuel = () => CONFIG.ringFuelSeconds * percent('fuelCapacity') * percent('ringFuelRecovery');
@@ -2356,6 +2451,7 @@ async function start(): Promise<void> {
     releasePointer();
     pressedKeys.clear();
     touchingGround = false;
+    routeSamples.length = 0; routeEvents.length = 0; routeSampleAccumulator = 0; routeResult = '未終了';
     hitCount = 0;
     playCoins = 0;
     airCoinValue = 0;
@@ -2518,7 +2614,7 @@ async function start(): Promise<void> {
     }
     body!.angularVelocity = new pc.Vec3();
     body!.activate();
-    setPhase('flying');
+    setPhase('flying'); routeEvent('launch');
     arrow.enabled = false;
     fuelSeconds = effectiveLaunchFuel();
     jetAvailable = true;
@@ -2665,7 +2761,7 @@ async function start(): Promise<void> {
         if (d <= CONFIG.breakableHitRadius * percent('smashRange')) {
           prop.broken = true;
           prop.effectTime = 0;
-          techniqueSigns += 1;
+          techniqueSigns += 1; routeEvent('sign');
           const smashValue = Math.max(prop.value, Math.round(prop.value * percent('smashReward')));
           playCoins += smashValue;
           airCoinValue += smashValue;
@@ -2722,7 +2818,7 @@ async function start(): Promise<void> {
       if (!activeFountainZones.has(fountainIndex)) {
         activeFountainZones.add(fountainIndex);
         techniqueFountains += 1;
-        showPickupFeedback('FOUNTAIN!', 'ring');
+        showPickupFeedback('FOUNTAIN!', 'ring'); routeEvent('fountain');
       }
       const v = body!.linearVelocity;
       const boostedPushY = fountain.pushY * percent('fountainBoost');
@@ -2754,7 +2850,7 @@ async function start(): Promise<void> {
     if (Math.abs(crossX - towerX) > 5.2 || crossY < 1.0 || crossY > 19.0) return;
     towerPassRegistered = true;
     techniqueTower = 1;
-    showPickupFeedback('TOWER +35%', 'ring');
+    showPickupFeedback('TOWER +35%', 'ring'); routeEvent('tower');
     message.textContent = 'タワーの脚の間を通過！装備抽選率 +35%。';
   }
 
@@ -2844,7 +2940,7 @@ async function start(): Promise<void> {
             window.broken = true;
             window.effectTime = 0;
             smashedWindow = true;
-            techniqueWindows += 1;
+            techniqueWindows += 1; routeEvent('window');
             playCoins += CONFIG.movingWindowCoinBonus;
             airCoinValue += CONFIG.movingWindowCoinBonus;
             coinCountText.textContent = String(playCoins);
@@ -2902,7 +2998,7 @@ async function start(): Promise<void> {
       const effectiveRingRadius = (ring.radius - CONFIG.ringThickness * 0.3) * percent('ringRange');
       if (radial > effectiveRingRadius) continue;
 
-      ring.used = true;
+      ring.used = true; routeEvent('ring');
       hitCount += 1;
       playCoins += CONFIG.ringCoinBonus;
       ringCoinValue += CONFIG.ringCoinBonus;
@@ -3082,7 +3178,7 @@ async function start(): Promise<void> {
     velocityBuffer.set(v.x, Math.max(v.y, targetY), boostedZ);
     body!.linearVelocity = velocityBuffer;
     body!.activate();
-    jetAvailable = false;
+    jetAvailable = false; routeEvent('jet');
     jetActiveSeconds = CONFIG.jetPitchSeconds * percent('jetDuration');
     fuelSeconds = Math.max(fuelSeconds, effectiveJetFuel());
     stateText.textContent = 'JET!';
@@ -3266,7 +3362,7 @@ async function start(): Promise<void> {
   stageTokyoPlay.addEventListener('click', playTokyo, eventOptions);
   homeShop.addEventListener('click', showShop, eventOptions);
   testDataReset.addEventListener('click', () => {
-    if (IS_SHARED_STAGE_TEST) { window.alert('共有テスト中はセーブデータを初期化できません。'); return; }
+    if (IS_TEST_PLAY) { window.alert('テスト中は通常セーブを初期化できません。'); return; }
     const ok = window.confirm('テストデータをすべて初期化します。\n\n所持コイン・装備・アンロック状況・ガチャ回数などが消えます。実行しますか？');
     if (!ok) return;
     localStorage.removeItem(SAVE_KEY);
@@ -3421,7 +3517,7 @@ async function start(): Promise<void> {
   function currentDropChance(): number {
     // Contributions can exceed 100%, but there is no hidden guarantee below 100%.
     // Ring and sign play are the main paths; window-smashes are bonuses rather than requirements.
-    return hitCount * 0.06 + techniqueSigns * 0.10 + techniqueWindows * 0.20 + techniqueFountains * 0.35 + techniqueTower * 0.35;
+    return (hitCount * CONFIG.dropRingPercent + techniqueSigns * CONFIG.dropSignPercent + techniqueWindows * CONFIG.dropWindowPercent + techniqueFountains * CONFIG.dropFountainPercent + techniqueTower * CONFIG.dropTowerPercent) / 100;
   }
 
   function showMilestoneBanner(kind: 'complete' | 'overshoot', goal: MilestoneGoal, unlockedNext = false): void {
@@ -3449,6 +3545,7 @@ async function start(): Promise<void> {
   function finish(label: string, text: string, success = false, goalBonus = CONFIG.goalCoinBonus): void {
     if (resultShown) return;
     resultShown = true;
+    routeResult = label; routeEvent(success ? 'goal' : 'finish');
     finalDistanceBonus = Math.floor(distance / CONFIG.distanceCoinStep) * CONFIG.distanceCoinValue;
     finalGoalBonus = success ? goalBonus : 0;
     playCoins += finalDistanceBonus + finalGoalBonus;
@@ -3480,7 +3577,7 @@ async function start(): Promise<void> {
     resultTotal.textContent = String(playCoins);
     const chance = currentDropChance();
     dropChanceText.textContent = `${Math.round(chance * 100)}%`;
-    dropBreakdown.textContent = `リング ${hitCount}×6% / 看板 ${techniqueSigns}×10% / 窓抜け ${techniqueWindows}×20% / 噴水 ${techniqueFountains}×35% / タワー ${techniqueTower}×35%`;
+    dropBreakdown.textContent = `リング ${hitCount}×${CONFIG.dropRingPercent}% / 看板 ${techniqueSigns}×${CONFIG.dropSignPercent}% / 窓抜け ${techniqueWindows}×${CONFIG.dropWindowPercent}% / 噴水 ${techniqueFountains}×${CONFIG.dropFountainPercent}% / タワー ${techniqueTower}×${CONFIG.dropTowerPercent}%`;
     dropRollButton.disabled = true;
     dropResult.className = 'drop-result';
     dropResult.textContent = '自動抽選中…';
@@ -3519,6 +3616,20 @@ async function start(): Promise<void> {
     const clearance = heightAboveSurface();
     const velocity = body.linearVelocity;
     distance = Math.max(distance, p.z - origin.z, 0);
+    if (SHOW_DEV_TOOLS) {
+      routeSampleAccumulator += dt;
+      if (routeSampleAccumulator >= 0.15) {
+        routeSampleAccumulator = 0;
+        if (routeSamples.length < 3000) routeSamples.push([
+          +elapsed.toFixed(2), +p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2),
+          +velocity.x.toFixed(2), +velocity.y.toFixed(2), +velocity.z.toFixed(2),
+          +fuelSeconds.toFixed(2), hitCount,
+        ]);
+        if (routeDebugVisible && routeDebugValues) {
+          routeDebugValues.textContent = `位置  X:${p.x.toFixed(1)} Y:${p.y.toFixed(1)} Z:${p.z.toFixed(1)}m\n速度  X:${velocity.x.toFixed(1)} Y:${velocity.y.toFixed(1)} Z:${velocity.z.toFixed(1)}m/s\n燃料  ${fuelSeconds.toFixed(2)}秒 / JET:${jetAvailable ? '可' : '使用済'}\nリング ${hitCount} / 看板 ${techniqueSigns} / 窓 ${techniqueWindows}\n噴水 ${techniqueFountains} / タワー ${techniqueTower}\n経過 ${elapsed.toFixed(1)}秒`;
+        }
+      }
+    }
     uiElapsed += dt;
     if (uiElapsed >= 0.08) {
       distanceText.textContent = formatDistance(distance);
