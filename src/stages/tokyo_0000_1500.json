@@ -1,4 +1,5 @@
 {
+  "published": true,
   "version": 1,
   "schemaVersion": 8,
   "stage": "TOKYO_0000-1500",
@@ -7,8 +8,8 @@
       "id": "draft-ring-01",
       "type": "ring",
       "x": 0,
-      "y": 14,
-      "z": 100,
+      "y": 11,
+      "z": 72,
       "liftY": 2
     },
     {
@@ -30,17 +31,17 @@
     {
       "id": "draft-sign-01",
       "type": "sign",
-      "x": -16,
+      "x": -22,
       "y": 20,
-      "z": 285,
-      "signKind": "groundTall"
+      "z": 295,
+      "signKind": "wallVertical"
     },
     {
       "id": "draft-ring-04",
       "type": "ring",
-      "x": 8,
-      "y": 20,
-      "z": 290,
+      "x": 0,
+      "y": 25,
+      "z": 292,
       "liftY": 2
     },
     {
@@ -49,14 +50,14 @@
       "x": 12,
       "y": 22,
       "z": 340,
-      "signKind": "groundTall"
+      "signKind": "wallRound"
     },
     {
       "id": "draft-ring-05",
       "type": "ring",
-      "x": -24,
-      "y": 30,
-      "z": 355,
+      "x": -34,
+      "y": 16,
+      "z": 356,
       "liftY": 2
     },
     {
@@ -70,10 +71,10 @@
     {
       "id": "draft-sign-03",
       "type": "sign",
-      "x": -34,
-      "y": 30,
-      "z": 400,
-      "signKind": "groundTall"
+      "x": -41,
+      "y": 37,
+      "z": 398,
+      "signKind": "wallWide"
     },
     {
       "id": "draft-ring-07",
@@ -89,7 +90,7 @@
       "x": 48,
       "y": 28,
       "z": 445,
-      "signKind": "groundTall"
+      "signKind": "roofWide"
     },
     {
       "id": "draft-sign-05",
@@ -98,14 +99,6 @@
       "y": 20,
       "z": 450,
       "signKind": "groundTall"
-    },
-    {
-      "id": "draft-ring-08",
-      "type": "ring",
-      "x": 38,
-      "y": 32,
-      "z": 470,
-      "liftY": 2
     },
     {
       "id": "draft-ring-09",
@@ -121,15 +114,15 @@
       "x": -46,
       "y": 24,
       "z": 525,
-      "signKind": "groundTall"
+      "signKind": "groundRound"
     },
     {
       "id": "draft-sign-07",
       "type": "sign",
-      "x": 48,
-      "y": 28,
-      "z": 545,
-      "signKind": "groundTall"
+      "x": 41,
+      "y": 22,
+      "z": 536,
+      "signKind": "wallVertical"
     },
     {
       "id": "draft-ring-10",
@@ -143,48 +136,40 @@
       "id": "draft-ring-11",
       "type": "ring",
       "x": -36,
-      "y": 20,
-      "z": 605,
+      "y": 14,
+      "z": 607,
       "liftY": 2
     },
     {
       "id": "draft-ring-12",
       "type": "ring",
-      "x": 38,
+      "x": 46,
       "y": 14,
-      "z": 625,
+      "z": 614,
       "liftY": 2
     },
     {
       "id": "draft-sign-08",
       "type": "sign",
-      "x": -42,
+      "x": -46,
       "y": 24,
-      "z": 650,
-      "signKind": "groundTall"
-    },
-    {
-      "id": "draft-ring-13",
-      "type": "ring",
-      "x": 30,
-      "y": 26,
-      "z": 670,
-      "liftY": 2
+      "z": 658,
+      "signKind": "wallRound"
     },
     {
       "id": "draft-ring-14",
       "type": "ring",
-      "x": -24,
+      "x": -92,
       "y": 16,
-      "z": 680,
+      "z": 801,
       "liftY": 2
     },
     {
       "id": "draft-ring-15",
       "type": "ring",
-      "x": 0,
+      "x": 14,
       "y": 16,
-      "z": 700,
+      "z": 698,
       "liftY": 2
     },
     {
@@ -198,15 +183,15 @@
     {
       "id": "draft-ring-17",
       "type": "ring",
-      "x": 64,
+      "x": 62,
       "y": 16,
-      "z": 750,
+      "z": 748,
       "liftY": 2
     },
     {
       "id": "draft-fountain-01",
       "type": "fountain",
-      "x": 0,
+      "x": -2,
       "y": 0,
       "z": 770,
       "maxY": 50,
@@ -219,22 +204,22 @@
       "x": -62,
       "y": 20,
       "z": 780,
-      "signKind": "groundTall"
+      "signKind": "wallWide"
     },
     {
       "id": "draft-sign-10",
       "type": "sign",
       "x": 76,
-      "y": 20,
+      "y": 25,
       "z": 800,
-      "signKind": "groundTall"
+      "signKind": "roofWide"
     },
     {
       "id": "draft-ring-18",
       "type": "ring",
-      "x": -74,
+      "x": -60,
       "y": 16,
-      "z": 825,
+      "z": 831,
       "liftY": 2
     },
     {
@@ -249,16 +234,16 @@
       "id": "draft-ring-20",
       "type": "ring",
       "x": 76,
-      "y": 16,
+      "y": 10,
       "z": 835,
       "liftY": 2
     },
     {
       "id": "draft-ring-21",
       "type": "ring",
-      "x": 24,
-      "y": 16,
-      "z": 845,
+      "x": 27,
+      "y": 18,
+      "z": 847,
       "liftY": 2
     },
     {
@@ -282,8 +267,8 @@
       "type": "sign",
       "x": 68,
       "y": 16,
-      "z": 875,
-      "signKind": "groundTall"
+      "z": 879,
+      "signKind": "groundRound"
     },
     {
       "id": "draft-sign-13",
@@ -291,7 +276,7 @@
       "x": -72,
       "y": 16,
       "z": 880,
-      "signKind": "groundTall"
+      "signKind": "wallVertical"
     },
     {
       "id": "draft-ring-23",
@@ -314,15 +299,7 @@
       "type": "ring",
       "x": 66,
       "y": 20,
-      "z": 930,
-      "liftY": 2
-    },
-    {
-      "id": "draft-ring-26",
-      "type": "ring",
-      "x": 14,
-      "y": 16,
-      "z": 960,
+      "z": 934,
       "liftY": 2
     },
     {
@@ -331,7 +308,7 @@
       "x": 60,
       "y": 14,
       "z": 980,
-      "signKind": "groundTall"
+      "signKind": "wallRound"
     },
     {
       "id": "draft-sign-15",
@@ -339,42 +316,34 @@
       "x": -54,
       "y": 16,
       "z": 985,
-      "signKind": "groundTall"
+      "signKind": "wallWide"
     },
     {
       "id": "draft-ring-27",
       "type": "ring",
-      "x": 0,
+      "x": -4,
       "y": 12,
-      "z": 990,
+      "z": 987,
       "liftY": 2
     },
     {
       "id": "draft-plane-01",
       "type": "plane",
-      "x": 0,
-      "y": 95,
-      "z": 1000,
-      "speed": 0.2,
-      "phase": 0.1,
+      "x": 1,
+      "y": 79,
+      "z": 1012,
+      "speed": 0.16,
+      "phase": 1,
       "spawnMode": "proximity",
-      "triggerAhead": 180,
+      "triggerAhead": 220,
       "repeatSeconds": 7
     },
     {
       "id": "draft-ring-28",
       "type": "ring",
-      "x": -44,
+      "x": -35,
       "y": 12,
-      "z": 1020,
-      "liftY": 2
-    },
-    {
-      "id": "draft-ring-29",
-      "type": "ring",
-      "x": 54,
-      "y": 12,
-      "z": 1020,
+      "z": 1012,
       "liftY": 2
     },
     {
@@ -385,76 +354,72 @@
       "z": 1050,
       "speed": 0.22,
       "phase": 0.25,
-      "spawnMode": "proximity",
-      "triggerAhead": 180,
-      "repeatSeconds": 7
+      "spawnMode": "legacy"
     },
     {
       "id": "draft-ring-30",
       "type": "ring",
-      "x": 0,
-      "y": 34,
-      "z": 1085,
+      "x": -1,
+      "y": 21,
+      "z": 1077,
       "liftY": 2
     },
     {
       "id": "draft-train-02",
       "type": "train",
-      "x": 20,
-      "y": 8,
+      "x": 22,
+      "y": 7,
       "z": 1100,
       "speed": 0.22,
       "phase": 0.5,
-      "spawnMode": "proximity",
-      "triggerAhead": 180,
-      "repeatSeconds": 7
+      "spawnMode": "legacy"
     },
     {
       "id": "draft-ring-31",
       "type": "ring",
-      "x": 44,
-      "y": 28,
-      "z": 1110,
+      "x": 49,
+      "y": 24,
+      "z": 1082,
       "liftY": 2
     },
     {
       "id": "draft-ring-32",
       "type": "ring",
-      "x": -34,
+      "x": -47,
       "y": 28,
-      "z": 1125,
+      "z": 1126,
       "liftY": 2
     },
     {
       "id": "draft-sign-16",
       "type": "sign",
       "x": 48,
-      "y": 24,
-      "z": 1155,
-      "signKind": "groundTall"
+      "y": 30,
+      "z": 1151,
+      "signKind": "roofWide"
     },
     {
       "id": "draft-sign-17",
       "type": "sign",
       "x": -30,
-      "y": 24,
+      "y": 37,
       "z": 1175,
-      "signKind": "groundTall"
+      "signKind": "roofWide"
     },
     {
       "id": "draft-ring-33",
       "type": "ring",
-      "x": 0,
+      "x": 21,
       "y": 12,
-      "z": 1185,
+      "z": 1188,
       "liftY": 2
     },
     {
       "id": "draft-ring-34",
       "type": "ring",
-      "x": 0,
-      "y": 40,
-      "z": 1200,
+      "x": -2,
+      "y": 39,
+      "z": 1156,
       "liftY": 2
     },
     {
@@ -462,11 +427,11 @@
       "type": "monorail",
       "x": -30,
       "y": 45,
-      "z": 1250,
+      "z": 1291,
       "speed": 0.22,
       "phase": 0.25,
       "spawnMode": "proximity",
-      "triggerAhead": 180,
+      "triggerAhead": 190,
       "repeatSeconds": 7
     },
     {
@@ -486,27 +451,19 @@
       "liftY": 2
     },
     {
-      "id": "draft-ring-37",
-      "type": "ring",
-      "x": -2,
-      "y": 32,
-      "z": 1400,
-      "liftY": 2
-    },
-    {
       "id": "draft-ring-38",
       "type": "ring",
-      "x": 38,
-      "y": 20,
-      "z": 1430,
+      "x": 42,
+      "y": 15,
+      "z": 1457,
       "liftY": 2
     },
     {
       "id": "draft-ring-39",
       "type": "ring",
-      "x": -38,
-      "y": 20,
-      "z": 1450,
+      "x": -41,
+      "y": 15,
+      "z": 1473,
       "liftY": 2
     },
     {
@@ -516,8 +473,463 @@
       "y": 0,
       "z": 1500,
       "width": 24,
-      "height": 18,
+      "height": 25,
       "depth": 14
+    },
+    {
+      "id": "S-001",
+      "type": "sign",
+      "x": -92,
+      "y": 20,
+      "z": 785,
+      "signKind": "groundRound"
+    },
+    {
+      "id": "S-002",
+      "type": "sign",
+      "x": 60,
+      "y": 20,
+      "z": 715,
+      "signKind": "wallVertical"
+    },
+    {
+      "id": "S-003",
+      "type": "sign",
+      "x": 93,
+      "y": 20,
+      "z": 909,
+      "signKind": "wallRound"
+    },
+    {
+      "id": "S-004",
+      "type": "sign",
+      "x": -94,
+      "y": 11,
+      "z": 974,
+      "signKind": "wallWide"
+    },
+    {
+      "id": "S-005",
+      "type": "sign",
+      "x": -57,
+      "y": 32,
+      "z": 1064,
+      "signKind": "roofWide"
+    },
+    {
+      "id": "S-006",
+      "type": "sign",
+      "x": 78,
+      "y": 20,
+      "z": 1029,
+      "signKind": "groundTall"
+    },
+    {
+      "id": "S-007",
+      "type": "sign",
+      "x": 66,
+      "y": 20,
+      "z": 1091,
+      "signKind": "groundRound"
+    },
+    {
+      "id": "V-001",
+      "type": "car",
+      "x": -31,
+      "y": 0,
+      "z": 143,
+      "speed": 0.22,
+      "phase": 0.01,
+      "spawnMode": "legacy"
+    },
+    {
+      "id": "S-008",
+      "type": "sign",
+      "x": 54,
+      "y": 20,
+      "z": 675,
+      "signKind": "wallVertical"
+    },
+    {
+      "id": "S-009",
+      "type": "sign",
+      "x": -75,
+      "y": 20,
+      "z": 720,
+      "signKind": "wallRound"
+    },
+    {
+      "id": "V-002",
+      "type": "car",
+      "x": 29,
+      "y": 0,
+      "z": 219,
+      "speed": 0.22,
+      "phase": 0.01,
+      "spawnMode": "legacy"
+    },
+    {
+      "id": "V-003",
+      "type": "car",
+      "x": 60,
+      "y": 4,
+      "z": 578,
+      "speed": 0.22,
+      "phase": 0.01,
+      "spawnMode": "legacy"
+    },
+    {
+      "id": "V-004",
+      "type": "car",
+      "x": -62,
+      "y": 4,
+      "z": 475,
+      "speed": 0.22,
+      "phase": 0.01,
+      "spawnMode": "legacy"
+    },
+    {
+      "id": "V-005",
+      "type": "car",
+      "x": 52,
+      "y": 0,
+      "z": 1256,
+      "speed": 0.22,
+      "phase": 0.01,
+      "spawnMode": "legacy"
+    },
+    {
+      "id": "V-006",
+      "type": "car",
+      "x": -58,
+      "y": 0,
+      "z": 1311,
+      "speed": 0.22,
+      "phase": 0.01,
+      "spawnMode": "legacy"
+    },
+    {
+      "id": "B-001",
+      "type": "building",
+      "x": -56,
+      "y": 0,
+      "z": 1063,
+      "width": 18,
+      "height": 30,
+      "depth": 25
+    },
+    {
+      "id": "B-002",
+      "type": "building",
+      "x": 47,
+      "y": 0,
+      "z": 1155,
+      "width": 18,
+      "height": 28,
+      "depth": 25
+    },
+    {
+      "id": "B-003",
+      "type": "building",
+      "x": -29,
+      "y": 0,
+      "z": 1173,
+      "width": 18,
+      "height": 34,
+      "depth": 25
+    },
+    {
+      "id": "B-004",
+      "type": "building",
+      "x": -38,
+      "y": 0,
+      "z": 797,
+      "width": 18,
+      "height": 32,
+      "depth": 25
+    },
+    {
+      "id": "B-005",
+      "type": "building",
+      "x": 33,
+      "y": 0,
+      "z": 734,
+      "width": 18,
+      "height": 32,
+      "depth": 25
+    },
+    {
+      "id": "S-010",
+      "type": "sign",
+      "x": -39,
+      "y": 35,
+      "z": 796,
+      "signKind": "roofWide"
+    },
+    {
+      "id": "S-011",
+      "type": "sign",
+      "x": 34,
+      "y": 36,
+      "z": 733,
+      "signKind": "roofWide"
+    },
+    {
+      "id": "B-006",
+      "type": "building",
+      "x": 0,
+      "y": 0,
+      "z": 1218,
+      "width": 22,
+      "height": 42,
+      "depth": 21
+    },
+    {
+      "id": "S-012",
+      "type": "sign",
+      "x": 1,
+      "y": 44,
+      "z": 1218,
+      "signKind": "roofWide"
+    },
+    {
+      "id": "L-001",
+      "type": "coinLine",
+      "x": 0,
+      "y": 12,
+      "z": 88,
+      "length": 60,
+      "pitch": 6,
+      "yaw": 0,
+      "spacing": 10
+    },
+    {
+      "id": "L-002",
+      "type": "coinLine",
+      "x": 14,
+      "y": 24,
+      "z": 189,
+      "length": 53,
+      "pitch": 6,
+      "yaw": 0,
+      "spacing": 10
+    },
+    {
+      "id": "L-003",
+      "type": "coinLine",
+      "x": 1,
+      "y": 37,
+      "z": 576,
+      "length": 76,
+      "pitch": 11,
+      "yaw": 0,
+      "spacing": 10
+    },
+    {
+      "id": "L-004",
+      "type": "coinLine",
+      "x": 0,
+      "y": 86,
+      "z": 929,
+      "length": 38,
+      "pitch": 4,
+      "yaw": -2,
+      "spacing": 10
+    },
+    {
+      "id": "L-005",
+      "type": "coinLine",
+      "x": 30,
+      "y": 20,
+      "z": 410,
+      "length": 37,
+      "pitch": 6,
+      "yaw": 9,
+      "spacing": 10
+    },
+    {
+      "id": "L-006",
+      "type": "coinLine",
+      "x": -38,
+      "y": 22,
+      "z": 497,
+      "length": 37,
+      "pitch": 6,
+      "yaw": 9,
+      "spacing": 10
+    },
+    {
+      "id": "L-007",
+      "type": "coinLine",
+      "x": -12,
+      "y": 18,
+      "z": 255,
+      "length": 49,
+      "pitch": 4,
+      "yaw": -10,
+      "spacing": 10
+    },
+    {
+      "id": "L-008",
+      "type": "coinLine",
+      "x": 0,
+      "y": 26,
+      "z": 301,
+      "length": 60,
+      "pitch": 6,
+      "yaw": 0,
+      "spacing": 10
+    },
+    {
+      "id": "L-009",
+      "type": "coinLine",
+      "x": -38,
+      "y": 14,
+      "z": 616,
+      "length": 39,
+      "pitch": 4,
+      "yaw": -9,
+      "spacing": 10
+    },
+    {
+      "id": "L-010",
+      "type": "coinLine",
+      "x": 3,
+      "y": 83,
+      "z": 1233,
+      "length": 97,
+      "pitch": -7,
+      "yaw": 0,
+      "spacing": 10
+    },
+    {
+      "id": "L-011",
+      "type": "coinLine",
+      "x": 64,
+      "y": 17,
+      "z": 753,
+      "length": 31,
+      "pitch": -2,
+      "yaw": 19,
+      "spacing": 10
+    },
+    {
+      "id": "L-012",
+      "type": "coinLine",
+      "x": -51,
+      "y": 21,
+      "z": 746,
+      "length": 67,
+      "pitch": -3,
+      "yaw": -13,
+      "spacing": 10
+    },
+    {
+      "id": "L-013",
+      "type": "coinLine",
+      "x": 76,
+      "y": 15,
+      "z": 837,
+      "length": 50,
+      "pitch": 6,
+      "yaw": -10,
+      "spacing": 10
+    },
+    {
+      "id": "L-014",
+      "type": "coinLine",
+      "x": -59,
+      "y": 17,
+      "z": 840,
+      "length": 70,
+      "pitch": 4,
+      "yaw": 6,
+      "spacing": 10
+    },
+    {
+      "id": "L-015",
+      "type": "coinLine",
+      "x": 50,
+      "y": 24,
+      "z": 1084,
+      "length": 50,
+      "pitch": 1,
+      "yaw": -2,
+      "spacing": 10
+    },
+    {
+      "id": "L-016",
+      "type": "coinLine",
+      "x": -48,
+      "y": 28,
+      "z": 1139,
+      "length": 67,
+      "pitch": -5,
+      "yaw": 1,
+      "spacing": 10
+    },
+    {
+      "id": "P-001",
+      "type": "plane",
+      "x": 95,
+      "y": 86,
+      "z": 879,
+      "speed": 0.16,
+      "phase": 1,
+      "spawnMode": "legacy",
+      "triggerAhead": 180,
+      "repeatSeconds": 7
+    },
+    {
+      "id": "L-017",
+      "type": "coinLine",
+      "x": 47,
+      "y": 20,
+      "z": 837,
+      "length": 100,
+      "pitch": 0,
+      "yaw": 0,
+      "spacing": 10
+    },
+    {
+      "id": "L-018",
+      "type": "coinLine",
+      "x": -92,
+      "y": 17,
+      "z": 809,
+      "length": 82,
+      "pitch": 4,
+      "yaw": 0,
+      "spacing": 10
+    },
+    {
+      "id": "L-019",
+      "type": "coinLine",
+      "x": -92,
+      "y": 11,
+      "z": 996,
+      "length": 80,
+      "pitch": 4,
+      "yaw": 11,
+      "spacing": 10
+    },
+    {
+      "id": "R-002",
+      "type": "ring",
+      "x": -94,
+      "y": 10,
+      "z": 995,
+      "liftY": 1
+    },
+    {
+      "id": "V-007",
+      "type": "car",
+      "x": 58,
+      "y": 0,
+      "z": 1443,
+      "speed": 0.22,
+      "phase": 0.01,
+      "spawnMode": "legacy"
     }
   ],
   "road": {
@@ -528,7 +940,7 @@
         "right": 38
       },
       {
-        "z": 300,
+        "z": 280,
         "left": 38,
         "right": 38
       },
@@ -543,12 +955,12 @@
         "right": 65
       },
       {
-        "z": 710,
+        "z": 661,
         "left": 84,
         "right": 84
       },
       {
-        "z": 770,
+        "z": 771,
         "left": 102,
         "right": 102
       },
@@ -579,6 +991,29 @@
       }
     ]
   },
-  "tuning": {},
-  "published": false
+  "tuning": {
+    "gravity": -5.2,
+    "ringRadius": 9.5,
+    "ringBoostZ": 10,
+    "ringFuelSeconds": 3.2,
+    "jetForwardBoost": 18,
+    "jetElevationDegrees": 9,
+    "fueledForwardDeceleration": 1.6,
+    "coastForwardDeceleration": 6.5,
+    "ringCoinBonus": 5,
+    "breakableCoinBonus": 10,
+    "movingWindowCoinBonus": 20,
+    "goalCoinBonus": 200,
+    "jetMaximumSpeedZ": 82,
+    "jetFuelSeconds": 1.8,
+    "coinValue": 1,
+    "distanceCoinValue": 5,
+    "breakableHitRadius": 5.2,
+    "movingWindowHitRadius": 5.2,
+    "dropRingPercent": 6,
+    "dropSignPercent": 10,
+    "dropWindowPercent": 30,
+    "dropFountainPercent": 20,
+    "dropTowerPercent": 35
+  }
 }
