@@ -87,7 +87,7 @@ const CONFIG = {
   dropTowerPercent: 35,
 };
 
-type StageEditorObject = { id: string; type: string; x: number; y: number; z: number; liftY?: number; maxY?: number; radius?: number; pushY?: number; speed?: number; phase?: number; spawnMode?: 'legacy' | 'proximity'; triggerAhead?: number; repeatSeconds?: number; signKind?: SignKind; width?: number; height?: number; depth?: number; length?: number; pitch?: number; yaw?: number; spacing?: number };
+type StageEditorObject = { id: string; type: string; x: number; y: number; z: number; liftY?: number; maxY?: number; radius?: number; pushY?: number; speed?: number; phase?: number; spawnMode?: 'legacy' | 'proximity'; triggerAhead?: number; repeatSeconds?: number; signKind?: SignKind; width?: number; height?: number; depth?: number; length?: number; pitch?: number; yaw?: number; spacing?: number; model?: 'box' | 'building_01' };
 const SIGN_KINDS = ['wallVertical', 'wallRound', 'wallWide', 'roofWide', 'groundTall', 'groundRound'] as const;
 type SignKind = typeof SIGN_KINDS[number];
 type RoadProfilePoint = { z: number; left: number; right: number };
@@ -185,7 +185,7 @@ function readSharedStageFromUrl(): StageEditorData | null {
     if (!token || token.length > 16000 || !/^[A-Za-z0-9_-]+$/.test(token)) return null;
     const raw = atob(token.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - token.length % 4) % 4));
     const data: unknown = JSON.parse(raw);
-    if (!Array.isArray(data) || ![1, 2, 3, 4, 5, 6].includes(data[0]) || !Array.isArray(data[1]) || data[1].length > 600) return null;
+    if (!Array.isArray(data) || ![1, 2, 3, 4, 5, 6, 7].includes(data[0]) || !Array.isArray(data[1]) || data[1].length > 600) return null;
     const objects: StageEditorObject[] = [];
     for (const row of data[1]) {
       if (!Array.isArray(row) || row.length < 4 || !Number.isInteger(row[0]) || row[0] < 0 || row[0] >= SHARED_OBJECT_TYPES.length) return null;
@@ -209,6 +209,8 @@ function readSharedStageFromUrl(): StageEditorData | null {
         o.width = Number.isFinite(row[4]) ? Math.max(2, Math.min(row[4], 200)) : 18;
         o.height = Number.isFinite(row[5]) ? Math.max(2, Math.min(row[5], 150)) : 32;
         o.depth = Number.isFinite(row[6]) ? Math.max(2, Math.min(row[6], 200)) : 25;
+        // v1.9: old URL versions still default to the original box visual.
+        o.model = data[0] >= 7 && row[7] === 1 ? 'building_01' : 'box';
       }
       if (type === 'ring') o.liftY = Number.isFinite(row[4]) ? row[4] : 1;
       if (type === 'sign' && Number.isInteger(row[4]) && row[4] >= 0 && row[4] < SIGN_KINDS.length) o.signKind = SIGN_KINDS[row[4]];
@@ -1653,6 +1655,17 @@ async function start(): Promise<void> {
     }
   }
 
+  // STEP 41 model test: only an explicitly selected building swaps its visual to GLB.
+  // Collision remains an Ammo static box from the editor dimensions.
+  // The supplied GLB is Y-up, with model bounds in meters measured in the source file.
+  // Centering/scaling is visual only: no change to layout, physics or saves.
+  const building01Bounds = {
+    min: [-0.27613276, -0.03733530, -0.86333056],
+    max: [0.58349837, 2.17482406, 0.96439189],
+  } as const;
+  type ModelBuildingTarget = { body: pc.Entity; placeholder: pc.Entity; width: number; height: number; depth: number };
+  const modelBuildingTargets: ModelBuildingTarget[] = [];
+
   // STAGE EDITOR v1.6: Individually placed buildings use the SAME JSON as the editor.
   // They are actual Ammo static collision bodies, not just visual markers.
   // Y is the base elevation (0 = street level), width = X, depth = Z.
@@ -1667,25 +1680,54 @@ async function start(): Promise<void> {
       body.setPosition(o.x, baseY + height * 0.5, o.z);
       body.addComponent('collision', { type: 'box', halfExtents: new pc.Vec3(width * 0.5, height * 0.5, depth * 0.5) });
       body.addComponent('rigidbody', { type: 'static', friction: 0.025, restitution: CONFIG.buildingRestitution });
-      box('BuildingVisual', new pc.Vec3(width, height, depth), new pc.Vec3(0, 0, 0),
+      // Keep a box placeholder until GLB load succeeds, so collision/visuals never disappear.
+      const placeholder = box('BuildingVisual', new pc.Vec3(width, height, depth), new pc.Vec3(),
         index % 2 === 0 ? buildingMaterialA : buildingMaterialB, body);
-      box('Roof', new pc.Vec3(width + 0.3, 0.3, depth + 0.3),
-        new pc.Vec3(0, height * 0.5 + 0.16, 0), roofMaterial, body);
-      // Window panels remain visual-only; the static box owns the collision.
-      // Limit window entities to avoid heavy draw calls on mobile devices.
-      const windowRows = Math.min(5, Math.floor((height - 5) / 7));
-      const windowCols = Math.min(6, Math.floor((depth - 4) / 9));
-      for (let row = 0; row < windowRows; row++) {
-        for (let col = 0; col < windowCols; col++) {
-          const py = -height * 0.5 + 4 + row * 7;
-          const pz = -depth * 0.5 + (col + 0.5) * depth / Math.max(1, windowCols);
-          box(`Window-${row}-${col}`, new pc.Vec3(0.045, 2.2, Math.min(4, depth / Math.max(1, windowCols) * 0.65)),
-            new pc.Vec3(-width * 0.5 - 0.025, py, pz), windowMaterial, body);
-          box(`WindowBack-${row}-${col}`, new pc.Vec3(0.045, 2.2, Math.min(4, depth / Math.max(1, windowCols) * 0.65)),
-            new pc.Vec3(width * 0.5 + 0.025, py, pz), windowMaterial, body);
+      if (o.model === 'building_01') {
+        modelBuildingTargets.push({ body, placeholder, width, height, depth });
+      } else {
+        box('Roof', new pc.Vec3(width + 0.3, 0.3, depth + 0.3),
+          new pc.Vec3(0, height * 0.5 + 0.16, 0), roofMaterial, body);
+        // Window panels remain visual-only; the static box owns the collision.
+        const windowRows = Math.min(5, Math.floor((height - 5) / 7));
+        const windowCols = Math.min(6, Math.floor((depth - 4) / 9));
+        for (let row = 0; row < windowRows; row++) {
+          for (let col = 0; col < windowCols; col++) {
+            const py = -height * 0.5 + 4 + row * 7;
+            const pz = -depth * 0.5 + (col + 0.5) * depth / Math.max(1, windowCols);
+            box(`Window-${row}-${col}`, new pc.Vec3(0.045, 2.2, Math.min(4, depth / Math.max(1, windowCols) * 0.65)),
+              new pc.Vec3(-width * 0.5 - 0.025, py, pz), windowMaterial, body);
+            box(`WindowBack-${row}-${col}`, new pc.Vec3(0.045, 2.2, Math.min(4, depth / Math.max(1, windowCols) * 0.65)),
+              new pc.Vec3(width * 0.5 + 0.025, py, pz), windowMaterial, body);
+          }
         }
       }
       app.root.addChild(body);
+    });
+  }
+  if (modelBuildingTargets.length > 0) {
+    // Load once, instantiate a distinct render entity for each building.
+    app.assets.loadFromUrl('/assets/models/buildings/building_tokyo_01.glb', 'container', (err, asset) => {
+      if (disposed || !application || err || !asset?.resource) {
+        if (err) console.warn('[Building GLB] load failed. Keeping collision-safe box fallback.', err);
+        return;
+      }
+      const center = [0, 1, 2].map((axis) => (building01Bounds.min[axis] + building01Bounds.max[axis]) * 0.5);
+      const size = [0, 1, 2].map((axis) => building01Bounds.max[axis] - building01Bounds.min[axis]);
+      for (const target of modelBuildingTargets) {
+        try {
+          const sx = target.width / size[0], sy = target.height / size[1], sz = target.depth / size[2];
+          const pivot = new pc.Entity('Building01VisualPivot');
+          pivot.setLocalPosition(-center[0] * sx, -center[1] * sy, -center[2] * sz);
+          const visual = asset.resource.instantiateRenderEntity({ castShadows: false });
+          visual.setLocalScale(sx, sy, sz);
+          pivot.addChild(visual);
+          target.body.addChild(pivot);
+          target.placeholder.destroy();
+        } catch (error) {
+          console.warn('[Building GLB] instantiation failed. Keeping box fallback.', error);
+        }
+      }
     });
   }
 
