@@ -1712,6 +1712,11 @@ async function start(): Promise<void> {
         if (err) console.warn('[Building GLB] load failed. Keeping collision-safe box fallback.', err);
         return;
       }
+      // PlayCanvas AssetRegistry.loadFromUrl types `resource` as object here.
+      // A GLB loaded as 'container' provides instantiateRenderEntity().
+      const glbResource = asset.resource as {
+        instantiateRenderEntity: (options?: { castShadows?: boolean }) => pc.Entity;
+      };
       const center = [0, 1, 2].map((axis) => (building01Bounds.min[axis] + building01Bounds.max[axis]) * 0.5);
       const size = [0, 1, 2].map((axis) => building01Bounds.max[axis] - building01Bounds.min[axis]);
       for (const target of modelBuildingTargets) {
@@ -1719,7 +1724,7 @@ async function start(): Promise<void> {
           const sx = target.width / size[0], sy = target.height / size[1], sz = target.depth / size[2];
           const pivot = new pc.Entity('Building01VisualPivot');
           pivot.setLocalPosition(-center[0] * sx, -center[1] * sy, -center[2] * sz);
-          const visual = asset.resource.instantiateRenderEntity({ castShadows: false });
+          const visual = glbResource.instantiateRenderEntity({ castShadows: false });
           visual.setLocalScale(sx, sy, sz);
           pivot.addChild(visual);
           target.body.addChild(pivot);
